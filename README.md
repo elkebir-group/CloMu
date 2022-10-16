@@ -49,6 +49,17 @@ To predict relative causality run the below command:
 
 python3 CloMu.py predict causality relative (model file) (causality file)
 
+To predict fitness run the below command:
+
+python3 CloMu.py predict fitness (model file) (fitness file)
+
+To give latent representations of all mutations run the below command:
+
+python3 CloMu.py predict latent (model file) (latent representation file)
+
+
+
+
 
 
 ## The data sets provided: 
