@@ -1,7 +1,7 @@
 # CloMu
 CloMu is a neural network based software for cancer phylogeny analysis.
 
-Dependencies: pytorch, numpy.
+Dependencies: python3, pytorch, numpy.
 
 # How to use CloMu:
 
@@ -11,7 +11,7 @@ analysis.py contains specific analysis code used to write the CloMu paper.
 
 ### Training the Model
 
-To train a model, run the code:
+To train a model, run the command:
 
 python CloMu.py train (input format) (input files) (model file) (tree probability file) (mutation name file) (maximum tree length) (optional arguements) 
 
@@ -23,7 +23,7 @@ To be specific, "input format" can either be "raw" or "multi". If using raw, "in
 
 One optional arguement is "-noInfiniteSites", to disable the infinite sites assumption. Below is an example of running the code with this.
 
-python3 CloMu.py train raw ./data/realData/AML.npy ./temp/model.pt ./temp/prob.npy ./temp/mutationNames.npy 10 -noInfiniteSites
+python CloMu.py train raw ./data/realData/AML.npy ./temp/model.pt ./temp/prob.npy ./temp/mutationNames.npy 10 -noInfiniteSites
 
 Another optional arguement is "-trainSize" followed by an integer number of data points to train on. Below is an example using that feature. 
 
@@ -36,6 +36,18 @@ python CloMu.py train multi ./data/simulations/I-a/T_4_R_0_bulkTrees.npz ./data/
 ### Making Predictions
 
 To predict the probability of a tree, simply include that tree in the data when training the model. The tree probabilities will automatically be evaluated. If you wish to predict the probabilities of trees you do not train on, simply include it the data used by the training function but set the "trainSize" such that that data is not trained on. 
+
+To predict causality one can run the below command:
+
+python3 CloMu.py predict causality absolute (model file) (causality file)
+
+An example of this is given below.
+
+python3 CloMu.py predict causality absolute ./Models/simulations/I-a/T_4_R_0_model.pt ./causality.npy
+
+To predict relative causality run the below command:
+
+python3 CloMu.py predict causality relative (model file) (causality file)
 
 
 
