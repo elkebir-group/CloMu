@@ -187,31 +187,12 @@ def doChoice(x):
     return x2
 
 
-def processTreeData(maxM, fileIn, fullDir=False):
+def processTreeData(maxM, fileIn, mutationFile, infiniteSites=True, patientNames=''):
 
     #This processes the data from a form using lists of trees to
     #a form using numpy tensors.
     #It also processes the mutation names into mutation numbers.
 
-    '''
-    if fileIn in ['./dataNew/manualCancer.npy', './dataNew/breastCancer.npy']:
-        treeData = np.load(fileIn, allow_pickle=True)
-    else:
-
-        if fullDir:
-            treeData = np.load(fileIn + '.npy', allow_pickle=True)
-        else:
-            treeData = np.load('./dataNew/customData/' + fileIn + '.npy', allow_pickle=True)
-        #print (treeData[0])
-        #print (len(treeData))
-
-        #print (treeData[0])
-        #print (treeData[1])
-        #print (treeData[2])
-        #print (treeData[3])
-        #print (treeData[4])
-        #quit()
-    '''
 
     #print (fileIn)
     #quit()
@@ -278,15 +259,18 @@ def processTreeData(maxM, fileIn, fullDir=False):
 
     uniqueMutation2 = []
     for name in uniqueMutation:
-        name1 = name.split('_')[0]
+        if infiniteSites:
+            name1 = name
+        else:
+            name1 = name.split('_')[0]
         uniqueMutation2.append(name1)
     uniqueMutation2 = np.array(uniqueMutation2)
     uniqueMutation2, mutationCategory = np.unique(uniqueMutation2, return_inverse=True)
 
-    #print (uniqueMutation2)
-    #quit()
+    np.save(mutationFile, uniqueMutation2[:-2])
 
-    #uniqueMutation2 = uniqueMutation2[:-2]
+    M = uniqueMutation2[:-2].shape[0]
+
     '''
     if not fullDir:
 
@@ -304,24 +288,21 @@ def processTreeData(maxM, fileIn, fullDir=False):
             np.save('./dataNew/categoryNames_' + fileIn + '.npy', uniqueMutation2)
     '''
 
-    #print (len(uniqueMutation))
-    #print (len(uniqueMutation2))
-    #quit()
-    #newTrees = newTrees.reshape(shape1)
-    #M = uniqueMutation.shape[0] - 2
-
-    #print (M)
-    #quit()
+    newTrees = newTrees.reshape(shape1)
 
     if (lastName in uniqueMutation) and (lastName != uniqueMutation[-1]):
         print ("Error in Mutation Name")
         quit()
 
+    if patientNames != '':
+        np.save(patientNames, sampleInverse)
+
+    _, sampleInverse = np.unique(sampleInverse, return_inverse=True)
 
     return newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M
 
 
-def trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=False, baselineSave=False, usePurity=False, adjustProbability=False, trainSet=False, unknownRoot=False, regularizeFactor=0.02):
+def trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=False, baselineSave=False, usePurity=False, adjustProbability=True, trainSet=False, unknownRoot=False, regularizeFactor=0.02):
 
 
     #This function trains a model to predict the probability of new mutations being added to clones,
@@ -671,7 +652,7 @@ def trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M
         optimizer.step()
         #quit()
 
-def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=False, baselineSave=False, usePurity=False, adjustProbability=False, trainSet=False, unknownRoot=False):
+def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=False, baselineSave=False, usePurity=False, adjustProbability=True, trainSet=False, unknownRoot=False):
 
 
     #This function trains a model to predict the probability of new mutations being added to clones,
@@ -881,7 +862,7 @@ def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, max
         #adjustProbability means that the algorithm optimizes to accuratly represent the probability
         #of different trees, rather than just trying to maximize the probability of the very most
         #likely trees (which is useful in some situations not discussed in the paper)
-        if adjustProbability:
+        if True:#adjustProbability:
             baseLineLog = np.log(baseLine)
             #baseLineLog = np.copy(baseLine)
 
@@ -941,11 +922,10 @@ def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, max
 
 
 
-        else:
 
 
-            loss_array = torch.exp( probLog1 - probLog2.detach() )
-            loss_array = loss_array[trainSet2]
+        #loss_array = torch.exp( probLog1 - probLog2.detach() )
+        #loss_array = loss_array[trainSet2]
 
 
         #This gives a minus sign, since we minimize the negative of the reward function mean.
@@ -1023,7 +1003,6 @@ def trainRealData(dataName, maxM=10, trainPer=0.666):
 
 
 
-
     #This code creates a training set test set split using a random state.
     rng = np.random.RandomState(2)
 
@@ -1034,10 +1013,10 @@ def trainRealData(dataName, maxM=10, trainPer=0.666):
     trainSet = trainSet[:N3]
 
 
-    print (N2)
-    print (np.unique(sampleInverse).shape)
-    quit()
-    quit()
+    #print (N2)
+    #print (np.unique(sampleInverse).shape)
+    ##quit()
+    #quit()
 
     ''''
     #This code actually trains the model using the data.
@@ -1057,35 +1036,53 @@ def trainRealData(dataName, maxM=10, trainPer=0.666):
 #quit()
 
 
-def trainModel(inputNameList, modelName, treeSelectionName, inputFormat):
+def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patientNames='', inputFormat='simple', infiniteSites=False, trainSize='all'):
 
-    if inputFormat:
+    if inputFormat == 'raw':
         maxM = 9
-        newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, inputNameList[0])
+        newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, inputNameList[0], mutationName, infiniteSites=infiniteSites, patientNames=patientNames)
 
 
     #newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, './data/lungData/processed.npy')
 
 
-    quit()
+    if trainSize == 'all':
 
-    #This code creates a training set test set split using a random state.
-    rng = np.random.RandomState(2)
+        #N2 = np.unique(sampleInverse).shape[0]
+        #trainSet = np.arange(N2)
+        trainSet = np.unique(sampleInverse).astype(int)
 
-    N2 = int(np.max(sampleInverse)+1)
-    trainSet = rng.permutation(N2)
-
-    N3 = int(np.floor(trainPer * N2))
-    trainSet = trainSet[:N3]
+    else:
 
 
-    print (N2)
-    print (np.unique(sampleInverse).shape)
-    quit()
-    quit()
+        trainSet = np.unique(sampleInverse).astype(int)
+        trainSet = trainSet[:trainSize]
+
+        #This code creates a training set test set split using a random state.
+        #rng = np.random.RandomState(2)
+
+        #N2 = int(np.max(sampleInverse)+1)
+
+        #trainSet = rng.permutation(N2)
+
+    #print (newTrees.shape)
+    #quit()
+
+    trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, trainSet=trainSet)
 
 
-#trainModel(['./data/realData/breastCancer.npy'], './model1.pt', './prob.npy', inputFormat='raw')
+
+    #print (N2)
+    #print (np.unique(sampleInverse).shape)
+    #quit()
+    #quit()
+
+
+#trainModel(['./data/realData/breastCancer.npy'], './temp/model.pt', './temp/prob.npy', './temp/mutationNames.npy', patientNames='', inputFormat='raw', infiniteSites=True, trainSize='all')
+#quit()
+
+#prob = np.load('./temp/prob.npy')
+#print (prob.shape)
 #quit()
 
 
@@ -1703,6 +1700,24 @@ if __name__ == "__main__":
 
     #print (sys.argv[1])
 
+    #print (sys.argv[1])
+
+    if sys.argv[1] == 'train':
+        inputFormat = sys.argv[2]
+        if inputFormat == 'raw':
+            inputFiles = [sys.argv[3]]
+            inNum = 4
+
+        modelName = sys.argv[inNum]
+        probName = sys.argv[inNum+1]
+        mutationName = sys.argv[inNum+2]
+
+        #(patient number file) (infinite sites assumption) (training set size)
+        trainModel(inputFiles, modelName, probName, mutationName, patientNames='', inputFormat=inputFormat, infiniteSites=True, trainSize='all')
+        #trainModel(['./data/realData/breastCancer.npy'], './temp/model.pt', './temp/prob.npy', './temp/mutationNames.npy', patientNames='', inputFormat='raw', infiniteSites=True, trainSize='all')
+
+
+    '''
     if sys.argv[1] == 'custom':
         if sys.argv[3] == 'train':
             maxM = int(sys.argv[4])
@@ -1782,7 +1797,7 @@ if __name__ == "__main__":
                     probPredictedTrees('manual')
                 if sys.argv[2] == 'breast':
                     probPredictedTrees('breast')
-
+    '''
 
     #Below are analyses from the paper which can be ran.
     #trainNewSimulations(1, 32)
