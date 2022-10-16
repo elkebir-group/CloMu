@@ -40,7 +40,7 @@ In data/simulations/ there are all simulated data sets used in the paper labeled
 
 The "raw" data format consists of a list of possible trees for each patient, or in order words, a list of lists of trees. Each tree consists of a list of edges. This information is stored in a .npy file. 
 
-The "multi" data format consists of three files. One, a list of all trees with modification that all trees have arbitary edges added (such as [0, 0]) until they reach the same length. Two a list of patient numbers corresponding to each tree. Three, a list of tree lengths for each patient in order to remove the arbitary added edges. Using this format, all input files are tensors (of rank 3 for the trees and 1 for the other two files). The data is stored in a compressed .npz file. 
+The "multi" data format consists of three files. One, a list of all trees with modification that all trees have arbitary edges added (such as [0, 0]) until they reach the same length. Two a list of patient numbers corresponding to each tree. Three, a list of tree lengths for each patient in order to remove the arbitary added edges. Using this format, all input files are tensors (of rank 3 for the trees and 1 for the other two files). The data is stored in compressed .npz files. 
 
 
 
