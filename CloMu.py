@@ -1823,6 +1823,16 @@ if __name__ == "__main__":
                 saveFile = sys.argv[5]
                 giveRelativeCausality(modelFile, saveFile)
 
+        if sys.argv[2] == 'fitness':
+            modelFile = sys.argv[3]
+            saveFile = sys.argv[4]
+            giveFitness(modelFile, saveFile)
+
+        if sys.argv[2] == 'latent':
+            modelFile = sys.argv[3]
+            saveFile = sys.argv[4]
+            giveLatentRepresentations(modelFile, saveFile)
+
 
     '''
     if sys.argv[1] == 'custom':
