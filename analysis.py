@@ -502,6 +502,7 @@ def toTreeMHNformat():
 
         newFileLines = [  ['Patient_ID', 'Tree_ID', 'Node_ID', 'Mutation_ID', 'Parent_ID'] ]
 
+        #Only half of trees used for training, just like CloMu.
         numPatient = treeLength.shape[0] // 2
 
         #numPatient = 100 #For Mini
@@ -3322,6 +3323,19 @@ def doProportionAnalysis():
 
     prop = np.log(arList[:, 1] / arList[:, 0])
 
+    print (np.median(  np.log(ar1[:, 1] / ar1[:, 0]) ))
+    print (np.median(  np.log(ar2[:, 1] / ar2[:, 0]) ))
+    print (np.median(  np.log(ar3[:, 1] / ar3[:, 0]) ))
+    print (np.median(  np.log(ar4[:, 1] / ar4[:, 0]) ))
+    print (np.median(  np.log(ar5[:, 1] / ar5[:, 0]) ))
+    print (np.median(  np.log(ar6[:, 1] / ar6[:, 0]) ))
+    print (np.median(  np.log(ar7[:, 1] / ar7[:, 0]) ))
+    print (np.median(  np.log(ar8[:, 1] / ar8[:, 0]) ))
+
+
+    #print (np.median(prop[label1== 5]))
+    quit()
+
     np.save('./sending/proportion/propFitness.npy', prop)
     np.save('./sending/proportion/MutationNames.npy', np.array(mutNames)[label1] )
     #np.save('./sending/proportion/OurFitness.npy',  )
@@ -3460,23 +3474,25 @@ def trainNewSimulations(T, N):
         sampleInverse = loadnpz('./dataNew/specialSim/dataSets/T_' + str(T) + '_R_' + str(a) + '_bulkSample.npz').astype(int)
         mutationCategory = ''
 
+        #This loads the length of each tree
         treeLength = loadnpz('./dataNew/specialSim/dataSets/T_' + str(T) + '_R_' + str(a) + '_treeSizes.npz')
         treeLength = treeLength[sampleInverse]
 
 
 
-        _, sampleIndex = np.unique(sampleInverse, return_index=True)
+        #_, sampleIndex = np.unique(sampleInverse, return_index=True)
 
 
         #Creating a training set test set split
-        rng = np.random.RandomState(2)
+        #rng = np.random.RandomState(2)
 
+        #This calculates the number of patients in the simulation
         N2 = int(np.max(sampleInverse)+1)
         #trainSet = np.random.permutation(N2)
-        trainSet = rng.permutation(N2)
+        #trainSet = rng.permutation(N2)
 
-        #trainSet = np.arange(N2)
-        trainSet = trainSet[:N2//2]
+        trainSet = np.arange(N2)
+        #trainSet = trainSet[:N2//2]
 
 
         #Preparing the files to save the model and tree probabilities
@@ -3497,7 +3513,7 @@ def trainNewSimulations(T, N):
 
 
 
-def testOccurSimulations(T, N):
+def testOccurSimulations(T=4, N=20):
 
     import matplotlib.pyplot as plt
 
@@ -3508,7 +3524,10 @@ def testOccurSimulations(T, N):
     #T = 0
     #N = 100
 
-    #N = 20
+    N = 20
+
+    #T == 4
+
 
     M = 10
 
@@ -3525,7 +3544,7 @@ def testOccurSimulations(T, N):
     for a in range(0, N):
 
         #This matrix is the set of true probability of true causal relationships
-        probabilityMatrix = loadnpz('./dataNew/specialSim/dataSets/T_' + str(T) + '_R_' + str(a) + '_prob.npz')
+        probabilityMatrix = loadnpz('./data/simulations/I-a/T_' + str(4) + '_R_' + str(a) + '_prob.npz')
 
         probabilityMatrix[np.arange(probabilityMatrix.shape[1]), np.arange(probabilityMatrix.shape[1])] = 0
 
@@ -3535,8 +3554,9 @@ def testOccurSimulations(T, N):
         prob_true[prob_true > 0.01] = 1
 
 
+
         #This loads in the model
-        modelFile = './dataNew/specialSim/results/T_' + str(T) + '_R_' + str(a) + '_model.pt'
+        modelFile = './Models/simulations/I-a/T_' + str(T) + '_R_' + str(a) + '_model.pt'
         model = torch.load(modelFile)
 
         #This prepares M clones, where the ith clone has only mutation i.
@@ -3640,7 +3660,7 @@ def testOccurSimulations(T, N):
 
     errorList = np.array(errorList).astype(int)
     if T == 4:
-        np.save('./plotResult/cloMuCausal.npy', errorList)
+        #np.save('./plotResult/cloMuCausal.npy', errorList)
         True
 
 #testOccurSimulations(7, 20)
@@ -7488,7 +7508,7 @@ def newAnalyzeModel(modelName):
     np.save('./dataNew/interestingMutations_' + modelName + '.npy', argsInteresting)
 
 
-    if False:
+    if True:
         #plt.plot(xNP[argsInteresting][np.argsort(xNP[argsInteresting, 0])])
 
         #This plots the latent parameters of the mutations
@@ -7527,7 +7547,7 @@ def newAnalyzeModel(modelName):
 
 
         plt.tight_layout()
-        plt.savefig('./images/LatentPlot_' + modelName + '.pdf')
+        #plt.savefig('./images/LatentPlot_' + modelName + '.pdf')
         plt.show()
 
         #quit()
@@ -7565,11 +7585,11 @@ def newAnalyzeModel(modelName):
 
 
     prob2_sum = np.sum(prob2_np, axis=1)
-    mutationNamePrint = ['NPM1', 'ASXL1', 'DNMT3A', 'NRAS', 'FLT3', 'IDH1', 'PTPN11', 'FLT3-ITD']
-    mutationNamePrint = np.array(mutationNamePrint)
+    #mutationNamePrint = ['NPM1', 'ASXL1', 'DNMT3A', 'NRAS', 'FLT3', 'IDH1', 'PTPN11', 'FLT3-ITD']
+    #mutationNamePrint = np.array(mutationNamePrint)
 
-    ar1 = np.array([prob2_sum, mutationName]).T
-    ar1 = ar1[np.isin(mutationName, mutationNamePrint)]
+    #ar1 = np.array([prob2_sum, mutationName]).T
+    #ar1 = ar1[np.isin(mutationName, mutationNamePrint)]
 
     #np.save('./sending/proportion/OurFitness.npy', ar1)
     #print (ar1)
@@ -7616,8 +7636,8 @@ def newAnalyzeModel(modelName):
 
     argsHigh = np.argwhere(latentSize > 0.02)[:, 0]
 
-    if False:
-        print (argsHigh.shape)
+    if True:
+        #print (argsHigh.shape)
         #quit()
 
         #This plots the relative fitness of all of the mutations in the data set.
@@ -7636,7 +7656,7 @@ def newAnalyzeModel(modelName):
             #################plt.annotate(name, (i -  (M / 20), prob2_sum[i] + (np.max(prob2_sum) / 100)    ))
             plt.annotate(name, (i , prob2_sum[i] + (np.max(prob2_sum) / 100)    ))
         plt.tight_layout()
-        plt.savefig('./images/fitnessPlot_' + modelName + '.pdf')
+        #plt.savefig('./images/fitnessPlot_' + modelName + '.pdf')
         plt.show()
 
         #quit()
@@ -7717,12 +7737,7 @@ def newAnalyzeModel(modelName):
         #True
         #reorder = np.arange(argsInteresting.shape[0])
 
-    doBlank = False
-    if doBlank:
-        arange1 = np.arange(M)
-        argExtra = np.argwhere(np.isin(arange1, argsInteresting) == False)[:, 0]
-        #reorder = np.array([4, 0, 1, 2, 3])
-        argsInteresting = np.concatenate((argsInteresting[reorder], argExtra))
+
 
 
 
@@ -7734,11 +7749,6 @@ def newAnalyzeModel(modelName):
 
 
 
-    #else:
-    #    reorder = np.arange(prob_np_adj_inter.shape[0])
-
-    if doBlank:
-        reorder = np.arange(prob_np_adj_inter.shape[0])
 
 
     #reorder = np.arange(prob_np_adj_inter.shape[0])
@@ -7752,36 +7762,6 @@ def newAnalyzeModel(modelName):
 
     # [DNMT3A, ASXL1, NPM1, NRAS, GATA2, U2AF1] for luekemia
 
-
-    if False:
-
-        vSize = np.max(np.abs(prob_np_adj_inter))
-        vmin = vSize * -1
-        vmax = vSize
-
-        #This is a plot of the causal relationship between all of the interesting mutations,
-        #with the names of the mutations labeled.
-        fig, ax = plt.subplots(1,1)
-
-        #from matplotlib.colors import DivergingNorm
-        #norm = DivergingNorm(vmin=prob_np_adj_inter.min(), vcenter=0, vmax=prob_np_adj_inter.max())
-        plt.imshow(prob_np_adj_inter, vmin=vmin, vmax=vmax, cmap='bwr')
-        img = ax.imshow(prob_np_adj_inter, vmin=vmin, vmax=vmax, cmap='bwr')
-        #img = ax.imshow(pred.data.numpy()[argsInteresting][:, argsInteresting]) #TODO UNDO Jul 25 2022
-        # ax.set_xticks([], minor=True)
-        # ax.xaxis.set_major_locator(MultipleLocator(1))
-        # ax.yaxis.set_major_locator(MultipleLocator(1))
-        plt.grid(False)
-        plt.xlabel("target mutation $t$")
-        plt.ylabel('source mutation $s$')
-        plt.colorbar()
-
-        plt.xticks(rotation = 90)
-        plt.tight_layout()
-        plt.savefig('./images/allOccurancePlot_' + modelName + '.pdf')
-        plt.show()
-
-        quit()
 
     if True:
 
@@ -7814,7 +7794,7 @@ def newAnalyzeModel(modelName):
 
         plt.xticks(rotation = 90)
         plt.tight_layout()
-        plt.savefig('./images/occurancePlot_' + modelName + '.pdf')
+        #plt.savefig('./images/occurancePlot_' + modelName + '.pdf')
         plt.show()
 
 
