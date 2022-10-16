@@ -9,10 +9,13 @@ CloMu.py contains the CloMu software to be used on any data set.
 
 analysis.py contains specific analysis code used to write the CloMu paper. 
 
+
 To train a model, run the code:
+
 python CloMu.py train (input format) (input files) (model file) (tree probability file) (maximum mutations per patient) (optional arguements) 
 
 As an example, one can run the below code:
+
 python CloMu.py train raw ./data/realData/breastCancer.npy ./model.pt ./prob.npy ./mutationNames.npy
 
 
