@@ -39,23 +39,23 @@ To predict the probability of a tree, simply include that tree in the data when 
 
 To predict causality one can run the below command:
 
-python3 CloMu.py predict causality absolute (model file) (causality file)
+python CloMu.py predict causality absolute (model file) (causality file)
 
 An example of this is given below.
 
-python3 CloMu.py predict causality absolute ./Models/simulations/I-a/T_4_R_0_model.pt ./causality.npy
+python CloMu.py predict causality absolute ./Models/simulations/I-a/T_4_R_0_model.pt ./causality.npy
 
 To predict relative causality run the below command:
 
-python3 CloMu.py predict causality relative (model file) (causality file)
+python CloMu.py predict causality relative (model file) (causality file)
 
 To predict fitness run the below command:
 
-python3 CloMu.py predict fitness (model file) (fitness file)
+python CloMu.py predict fitness (model file) (fitness file)
 
 To give latent representations of all mutations run the below command:
 
-python3 CloMu.py predict latent (model file) (latent representation file)
+python CloMu.py predict latent (model file) (latent representation file)
 
 
 
