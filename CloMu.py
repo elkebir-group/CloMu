@@ -248,7 +248,10 @@ def processTreeData(maxM, fileIn, mutationFile, infiniteSites=True, patientNames
 
     #uniqueMutation =  np.unique(newTrees)
     #for name in uniqueMutation:
-    #    name1 = name.split('_')[0]
+    #    if infiniteSites:
+    #        name1 = name
+    #    else:
+    #        name1 = name.split('_')[0]
     #    #print (name, name1)
     #    newTrees[newTrees == name] = name1
     #quit()
@@ -256,6 +259,8 @@ def processTreeData(maxM, fileIn, mutationFile, infiniteSites=True, patientNames
 
     uniqueMutation, newTrees = np.unique(newTrees, return_inverse=True)
 
+    #print (infiniteSites)
+    #quit()
 
     uniqueMutation2 = []
     for name in uniqueMutation:
@@ -269,7 +274,7 @@ def processTreeData(maxM, fileIn, mutationFile, infiniteSites=True, patientNames
 
     np.save(mutationFile, uniqueMutation2[:-2])
 
-    M = uniqueMutation2[:-2].shape[0]
+    M = uniqueMutation.shape[0] - 2
 
     '''
     if not fullDir:
@@ -989,7 +994,7 @@ def trainRealData(dataName, maxM=10, trainPer=0.666):
     #This loads in the data.
     if dataName == 'manual':
         maxM = 10
-        newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, './dataNew/manualCancer.npy')
+        newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, './data/realData/AML.npy', './mutationName.npy')
     elif dataName == 'breast':
         maxM = 9
         newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, './dataNew/breastCancer.npy')
@@ -1001,7 +1006,8 @@ def trainRealData(dataName, maxM=10, trainPer=0.666):
 
     #newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, './data/lungData/processed.npy')
 
-
+    #print (newTrees.shape, sampleInverse.shape, mutationCategory.shape, treeLength.shape, uniqueMutation.shape)
+    #quit()
 
     #This code creates a training set test set split using a random state.
     rng = np.random.RandomState(2)
@@ -1018,17 +1024,20 @@ def trainRealData(dataName, maxM=10, trainPer=0.666):
     ##quit()
     #quit()
 
-    ''''
+    #trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave='./banana.pt', baselineSave='./banana.npy', trainSet=trainSet)
+    #quit()
+
+    #''''
     #This code actually trains the model using the data.
     if dataName == 'manual':
-        trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave='./Models/savedModel_manual_PartialTrain_ex.pt', baselineSave='./Models/baseline_manual_Partial.npy', adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=0.015)#, regularizeFactor=0.005)#, regularizeFactor=0.01)
-    elif dataName == 'breast':
-        trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave='./Models/savedModel_breast_ex.pt', baselineSave='./Models/baseline_breast_ex.npy', adjustProbability=True, trainSet=trainSet, unknownRoot=True)
-    else:
-        #trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave='./Models/savedModel_' + dataName + '.pt', baselineSave='./Models/baseline_' + dataName + '.npy', adjustProbability=True, trainSet=trainSet, unknownRoot=True)
-        trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave='./Models/savedModel_' + dataName + '.pt', baselineSave='./Models/baseline_' + dataName + '.npy',
-                            adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=0.0005) #0.00005 #0.0005 #too small 0.00001
-    #'''
+        trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave='./banana.pt', baselineSave='./banana.npy', adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=0.015)#, regularizeFactor=0.005)#, regularizeFactor=0.01)
+    #elif dataName == 'breast':
+    #         trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave='./Models/savedModel_breast_ex.pt', baselineSave='./Models/baseline_breast_ex.npy', adjustProbability=True, trainSet=trainSet, unknownRoot=True)
+    #else:
+    #    #trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave='./Models/savedModel_' + dataName + '.pt', baselineSave='./Models/baseline_' + dataName + '.npy', adjustProbability=True, trainSet=trainSet, unknownRoot=True)
+    #    trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave='./Models/savedModel_' + dataName + '.pt', baselineSave='./Models/baseline_' + dataName + '.npy',
+    #                        adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=0.0005) #0.00005 #0.0005 #too small 0.00001
+    ##'''
 
 
 
@@ -1036,14 +1045,32 @@ def trainRealData(dataName, maxM=10, trainPer=0.666):
 #quit()
 
 
-def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patientNames='', inputFormat='simple', infiniteSites=False, trainSize='all'):
+def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patientNames='', inputFormat='simple', infiniteSites=True, trainSize='all', maxM=10):
 
     if inputFormat == 'raw':
-        maxM = 9
+        #maxM = 9
         newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, inputNameList[0], mutationName, infiniteSites=infiniteSites, patientNames=patientNames)
-
+        #newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, './data/realData/AML.npy', './mutationName.npy')
+        #newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, './data/realData/AML.npy', './mutationName.npy', infiniteSites=infiniteSites)
 
     #newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, './data/lungData/processed.npy')
+    elif inputFormat == 'multi':
+
+        #print ([inputNameList])
+
+        newTrees = loadnpz(inputNameList[0])
+        newTrees = newTrees.astype(int)
+        sampleInverse = loadnpz(inputNameList[1]).astype(int)
+
+        M = int(np.max(newTrees) - 1)
+        #print (np.max(newTrees))
+        #quit()
+
+        #This loads the length of each tree
+        treeLength = loadnpz(inputNameList[2])
+        treeLength = treeLength[sampleInverse]
+
+        mutationCategory = ''
 
 
     if trainSize == 'all':
@@ -1065,10 +1092,18 @@ def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patien
 
         #trainSet = rng.permutation(N2)
 
-    #print (newTrees.shape)
+    #print (newTrees.shape, sampleInverse.shape, mutationCategory.shape, treeLength.shape, uniqueMutation.shape)
     #quit()
 
-    trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, trainSet=trainSet)
+
+    #trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave='./banana.pt', baselineSave='./banana.npy', adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=0.015)
+    #quit()
+
+    if infiniteSites:
+        trainModelTree(newTrees,      sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, trainSet=trainSet)
+    else:
+        trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=0.015)
+        #trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, trainSet=trainSet)
 
 
 
@@ -1078,12 +1113,28 @@ def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patien
     #quit()
 
 
-#trainModel(['./data/realData/breastCancer.npy'], './temp/model.pt', './temp/prob.npy', './temp/mutationNames.npy', patientNames='', inputFormat='raw', infiniteSites=True, trainSize='all')
+#newTrees = loadnpz('./dataNew/specialSim/dataSets/T_' + str(T) + '_R_' + str(a) + '_bulkTrees.npz')
+#newTrees = newTrees.astype(int)
+#sampleInverse = loadnpz('./dataNew/specialSim/dataSets/T_' + str(T) + '_R_' + str(a) + '_bulkSample.npz').astype(int)
+#mutationCategory = ''
+
+#This loads the length of each tree
+#treeLength = loadnpz('./dataNew/specialSim/dataSets/T_' + str(T) + '_R_' + str(a) + '_treeSizes.npz')
+#treeLength = treeLength[sampleInverse]
+
+
+#trainModel(['./data/realData/AML.npy'], './temp/model.pt', './temp/prob.npy', './temp/mutationNames.npy', patientNames='', inputFormat='raw', infiniteSites=False, trainSize='all')
+#trainModel(['./data/simulations/I-a/T_4_R_0_bulkTrees.npz', './data/simulations/I-a/T_4_R_0_bulkSample.npz', './data/simulations/I-a/T_4_R_0_treeSizes.npz'], './temp/model.pt', './temp/prob.npy', './temp/mutationNames.npy', patientNames='', inputFormat='multi', infiniteSites=True, trainSize='all')
 #quit()
 
 #prob = np.load('./temp/prob.npy')
 #print (prob.shape)
 #quit()
+
+#import matplotlib.pyplot as plt
+#data = np.load('./causality.npy')
+#plt.imshow(data)
+#plt.show()
 
 
 def giveAbsoluteCausality(modelFile, saveFile):
@@ -1116,12 +1167,19 @@ def giveAbsoluteCausality(modelFile, saveFile):
     for b in range(output.shape[1]):
         output_np[:, b] = output_np[:, b] - output_normal[0, b]
 
+    #import matplotlib.pyplot as plt
+    #plt.imshow(output_np)
+    #plt.show()
+    #quit()
+
     np.save(saveFile, output_np)
 
 
 #modelFile = './Models/simulations/I-a/T_' + str(4) + '_R_' + str(0) + '_model.pt'
+#modelFile = './model.pt'
+#saveFile = './causality2.npy'
 #output_np = giveAbsoluteCausality(modelFile, saveFile)
-
+#quit()
 
 
 def giveRelativeCausality(modelFile, saveFile, meanAdjust=False):
@@ -1156,7 +1214,7 @@ def giveRelativeCausality(modelFile, saveFile, meanAdjust=False):
     prob = torch.softmax(pred, dim=1)
     prob_np = prob.data.numpy()
 
-
+    meanAdjust = True
     prob_np_adj = np.copy(prob_np)
     for a in range(len(prob_np_adj)):
         if meanAdjust:
@@ -1702,19 +1760,68 @@ if __name__ == "__main__":
 
     #print (sys.argv[1])
 
+    #newTrees = loadnpz('./dataNew/specialSim/dataSets/T_' + str(T) + '_R_' + str(a) + '_bulkTrees.npz')
+    #newTrees = newTrees.astype(int)
+    #sampleInverse = loadnpz('./dataNew/specialSim/dataSets/T_' + str(T) + '_R_' + str(a) + '_bulkSample.npz').astype(int)
+    #mutationCategory = ''
+
+    #This loads the length of each tree
+    #treeLength = loadnpz('./dataNew/specialSim/dataSets/T_' + str(T) + '_R_' + str(a) + '_treeSizes.npz')
+    #treeLength = treeLength[sampleInverse]
+
+
+
     if sys.argv[1] == 'train':
         inputFormat = sys.argv[2]
         if inputFormat == 'raw':
             inputFiles = [sys.argv[3]]
             inNum = 4
+        if inputFormat == 'multi':
+            inputFiles = [sys.argv[3], sys.argv[4], sys.argv[5]]
+            inNum = 6
 
         modelName = sys.argv[inNum]
         probName = sys.argv[inNum+1]
         mutationName = sys.argv[inNum+2]
+        maxM = sys.argv[inNum+3]
+        maxM = int(maxM)
+
+
+        infiniteSites = True
+        trainSize = 'all'
+        inNum2 = inNum+4
+        if len(sys.argv) > inNum2:
+            ar = sys.argv[inNum2:]
+
+            if '-noInfiniteSites' in ar:
+                infiniteSites = False
+
+            if '-trainSize' in ar:
+                arg1 = np.argwhere(np.array(ar) == '-trainSize')[0, 0]
+                trainSize = int(ar[arg1+1])
+
+        #print (inputFiles)
+        #quit()
 
         #(patient number file) (infinite sites assumption) (training set size)
-        trainModel(inputFiles, modelName, probName, mutationName, patientNames='', inputFormat=inputFormat, infiniteSites=True, trainSize='all')
+        trainModel(inputFiles, modelName, probName, mutationName, patientNames='', inputFormat=inputFormat, infiniteSites=infiniteSites, trainSize=trainSize, maxM=maxM)
         #trainModel(['./data/realData/breastCancer.npy'], './temp/model.pt', './temp/prob.npy', './temp/mutationNames.npy', patientNames='', inputFormat='raw', infiniteSites=True, trainSize='all')
+
+    elif sys.argv[1] == 'predict':
+
+        if sys.argv[2] == 'causality':
+
+            if sys.argv[3] == 'absolute':
+
+                modelFile = sys.argv[4]
+                saveFile = sys.argv[5]
+                giveAbsoluteCausality(modelFile, saveFile)
+
+            if sys.argv[3] == 'relative':
+
+                modelFile = sys.argv[4]
+                saveFile = sys.argv[5]
+                giveRelativeCausality(modelFile, saveFile)
 
 
     '''
