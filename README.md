@@ -1,4 +1,5 @@
-# CloMu
+# CloMu: Modeling and Predicting Cancer Clonal Evolution with Reinforcement Learning
+
 CloMu is a neural network based software for cancer phylogeny analysis.
 
 Dependencies: python3, pytorch, numpy.
