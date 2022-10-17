@@ -37,6 +37,14 @@ python CloMu.py train multi ./data/simulations/I-a/T_4_R_0_bulkTrees.npz ./data/
 
 To predict the probability of a tree, simply include that tree in the data when training the model. The tree probabilities will automatically be evaluated. If you wish to predict the probabilities of trees you do not train on, simply include it the data used by the training function but set the "trainSize" such that that data is not trained on. 
 
+To explicitly make a prediction of one tree per patient given the saved tree probability file, one can run the below command:
+
+python3 CloMu.py predict select (tree probability file) (file with patient number for each tree) (file to save predictions)
+
+An example of this is given below.
+
+python3 CloMu.py predict select ./Models/simulations/I-a/T_4_R_0_baseline.pt.npy ./data/simulations/I-a/T_4_R_0_bulkSample.npz ./treeSelect.npy
+
 To predict causality one can run the below command:
 
 python CloMu.py predict causality absolute (model file) (causality file)
@@ -44,6 +52,8 @@ python CloMu.py predict causality absolute (model file) (causality file)
 An example of this is given below.
 
 python CloMu.py predict causality absolute ./Models/simulations/I-a/T_4_R_0_model.pt ./causality.npy
+
+To interpret the matrix saved in this file, note Matrix[s, t] is the causal relationship from s to t. 
 
 To predict relative causality run the below command:
 
