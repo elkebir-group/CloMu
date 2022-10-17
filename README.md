@@ -84,10 +84,15 @@ In data/simulations/ there are all simulated data sets used in the paper labeled
 
 ## Data format:
 
+### general format
+
 The "raw" data format consists of a list of possible trees for each patient, or in order words, a list of lists of trees. Each tree consists of a list of edges. This information is stored in a .npy file. 
 
 The "multi" data format consists of three files. One, a list of all trees with modification that all trees have arbitary edges added (such as [0, 0]) until they reach the same length. Two a list of patient numbers corresponding to each tree. Three, a list of tree lengths for each patient in order to remove the arbitary added edges. Using this format, all input files are tensors (of rank 3 for the trees and 1 for the other two files). The data is stored in compressed .npz files. 
 
+### Without Infinite Sites
+
+With the infinite sites assumption removed, one can not define a tree purely by mutation labels. The same mutation can occur several times in a tree, and thus referencing a parent node only using it's mutation name is ambigous. Therefore, all nodes are labeled by "mutationName_nodeName", using and underscore to seperate them. The mutation name must be a unique name for every mutation at the level of detail that you wish to analyze. For example, for gene level data it would be the gene name. For "nodeName" there must be a unique name for each node in the tree. It is not required to be anything specific such as the number of that node. Currently, only the raw format is accepted when the infinite sites assumption is removed. 
 
 
 
