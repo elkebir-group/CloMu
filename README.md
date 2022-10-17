@@ -29,9 +29,12 @@ Another optional arguement is "-trainSize" followed by an integer number of data
 
 python CloMu.py train raw ./data/realData/breastCancer.npy ./model.pt ./prob.npy ./mutationNames.npy 9  -trainSize 200
 
+Another optional arguement is "-regularization" which should be followed by a real number (something like 0.01) if one wants to modify the strength of the regularization when training the neural network. 
+
 In addition to the raw input format, we also accept an input format consisting of multiple files. In that case, "input format" should be "multi". Then 'input files" should be (file with a list of trees) (file with the patient number of each tree) (file with the length of each tree). An example is below. 
 
 python CloMu.py train multi ./data/simulations/I-a/T_4_R_0_bulkTrees.npz ./data/simulations/I-a/T_4_R_0_bulkSample.npz ./data/simulations/I-a/T_4_R_0_treeSizes.npz  ./model.pt ./prob.npy ./mutationNames.npy 10 -trainSize 500
+
 
 ### Making Predictions
 
