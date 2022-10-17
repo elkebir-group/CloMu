@@ -25,6 +25,13 @@ def loadnpz(name, allow_pickle=False):
     data = data.f.arr_0
     return data
 
+def loadEither(name):
+
+    if name[-1] == 'z':
+        return loadnpz(name)
+    else:
+        return np.load(name)
+
 class MutationModel(nn.Module):
     def __init__(self, M):
         super(MutationModel, self).__init__()
@@ -246,17 +253,6 @@ def processTreeData(maxM, fileIn, mutationFile, infiniteSites=True, patientNames
 
 
 
-    #uniqueMutation =  np.unique(newTrees)
-    #for name in uniqueMutation:
-    #    if infiniteSites:
-    #        name1 = name
-    #    else:
-    #        name1 = name.split('_')[0]
-    #    #print (name, name1)
-    #    newTrees[newTrees == name] = name1
-    #quit()
-
-
     uniqueMutation, newTrees = np.unique(newTrees, return_inverse=True)
 
     #print (infiniteSites)
@@ -276,22 +272,6 @@ def processTreeData(maxM, fileIn, mutationFile, infiniteSites=True, patientNames
 
     M = uniqueMutation.shape[0] - 2
 
-    '''
-    if not fullDir:
-
-        if fileIn == './dataNew/manualCancer.npy':
-            np.save('./dataNew/mutationNames.npy', uniqueMutation)
-            np.save('./dataNew/categoryNames.npy', uniqueMutation2[:-2])
-        elif fileIn == './dataNew/breastCancer.npy':
-            #print ("Hi")
-            #print (len(uniqueMutation))
-            np.save('./dataNew/mutationNamesBreast.npy', uniqueMutation)
-            #np.save('./data/mutationNamesBreastLarge.npy', uniqueMutation)
-            True
-        else:
-            np.save('./dataNew/mutationNames_' + fileIn + '.npy', uniqueMutation)
-            np.save('./dataNew/categoryNames_' + fileIn + '.npy', uniqueMutation2)
-    '''
 
     newTrees = newTrees.reshape(shape1)
 
@@ -657,7 +637,7 @@ def trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M
         optimizer.step()
         #quit()
 
-def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=False, baselineSave=False, usePurity=False, adjustProbability=True, trainSet=False, unknownRoot=False):
+def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=False, baselineSave=False, usePurity=False, adjustProbability=True, trainSet=False, unknownRoot=False, regularizeFactor=0.002):
 
 
     #This function trains a model to predict the probability of new mutations being added to clones,
@@ -953,7 +933,8 @@ def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, max
             c1 += 1
 
         #regularization = regularization * 0.0001
-        regularization = regularization * 0.0002 #Best for breast cancer
+        #regularization = regularization * 0.0002 #Best for breast cancer
+        regularization = regularization * regularizeFactor
         #regularization = regularization * 0.002 #Used for our occurance simulation as well
 
         #Adding regularization to the loss
@@ -985,67 +966,9 @@ def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, max
         loss.backward()
         optimizer.step()
 
-def trainRealData(dataName, maxM=10, trainPer=0.666):
-
-    #This trains on real data sets or custum data sets.
-    #Simulated data sets in the paper are given there own individual functions for training the model.
 
 
-    #This loads in the data.
-    if dataName == 'manual':
-        maxM = 10
-        newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, './data/realData/AML.npy', './mutationName.npy')
-    elif dataName == 'breast':
-        maxM = 9
-        newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, './dataNew/breastCancer.npy')
-    else:
-        newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, dataName)
-        runInfo = [maxM]
-        np.save('./Models/runInfo_' + dataName + '.npy', runInfo)
-
-
-    #newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, './data/lungData/processed.npy')
-
-    #print (newTrees.shape, sampleInverse.shape, mutationCategory.shape, treeLength.shape, uniqueMutation.shape)
-    #quit()
-
-    #This code creates a training set test set split using a random state.
-    rng = np.random.RandomState(2)
-
-    N2 = int(np.max(sampleInverse)+1)
-    trainSet = rng.permutation(N2)
-
-    N3 = int(np.floor(trainPer * N2))
-    trainSet = trainSet[:N3]
-
-
-    #print (N2)
-    #print (np.unique(sampleInverse).shape)
-    ##quit()
-    #quit()
-
-    #trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave='./banana.pt', baselineSave='./banana.npy', trainSet=trainSet)
-    #quit()
-
-    #''''
-    #This code actually trains the model using the data.
-    if dataName == 'manual':
-        trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave='./banana.pt', baselineSave='./banana.npy', adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=0.015)#, regularizeFactor=0.005)#, regularizeFactor=0.01)
-    #elif dataName == 'breast':
-    #         trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave='./Models/savedModel_breast_ex.pt', baselineSave='./Models/baseline_breast_ex.npy', adjustProbability=True, trainSet=trainSet, unknownRoot=True)
-    #else:
-    #    #trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave='./Models/savedModel_' + dataName + '.pt', baselineSave='./Models/baseline_' + dataName + '.npy', adjustProbability=True, trainSet=trainSet, unknownRoot=True)
-    #    trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave='./Models/savedModel_' + dataName + '.pt', baselineSave='./Models/baseline_' + dataName + '.npy',
-    #                        adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=0.0005) #0.00005 #0.0005 #too small 0.00001
-    ##'''
-
-
-
-#trainRealData('manual')
-#quit()
-
-
-def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patientNames='', inputFormat='simple', infiniteSites=True, trainSize='all', maxM=10):
+def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patientNames='', inputFormat='simple', infiniteSites=True, trainSize='all', maxM=10, regularizeFactor='default'):
 
     if inputFormat == 'raw':
         #maxM = 9
@@ -1100,9 +1023,13 @@ def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patien
     #quit()
 
     if infiniteSites:
-        trainModelTree(newTrees,      sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, trainSet=trainSet)
+        if regularizeFactor == 'default':
+            regularizeFactor = 0.002
+        trainModelTree(newTrees,      sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, trainSet=trainSet, regularizeFactor=regularizeFactor)
     else:
-        trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=0.015)
+        if regularizeFactor == 'default':
+            regularizeFactor = 0.015
+        trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=regularizeFactor)
         #trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, trainSet=trainSet)
 
 
@@ -1302,451 +1229,22 @@ def giveFitness(modelFile, saveFile):
 #giveFitness(modelFile, saveFile)
 #quit()
 
+def giveTreeSelection(probFile, sampleFile, saveFile):
 
-def newAnalyzeModel(modelName):
+    prob = loadEither(probFile)
+    sampleInverse = loadEither(sampleFile)
 
-    #This function does an analysis of the model trained on a data set,
-    #creating plots of fitness, causal relationships, and latent representations.
+    predList = []
+    unique1 = np.unique(sampleInverse)
+    for a in range(len(unique1)):
+        args1 = np.argwhere(sampleInverse == unique1[a])[:, 0]
+        pred1 = np.argmax(prob[args1])
+        predList.append(pred1)
 
-    print ("analyzeModel")
+    predList = np.array(predList)
 
-    import matplotlib.pyplot as plt
+    np.save(saveFile, predList)
 
-
-
-    import os, sys, glob
-    import matplotlib as mpl
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-
-    from matplotlib.ticker import (AutoMinorLocator, MultipleLocator)
-
-    sns.set_style('whitegrid')
-    mpl.rc('text', usetex=True)
-    sns.set_context("notebook", font_scale=1.4)
-
-    #plt.gcf().tight_layout()
-
-
-
-
-    if modelName == 'manual':
-        model = torch.load('./Models/savedModel_manual_allTrain.pt')
-        #model = torch.load('./Models/savedModel_manual_oct12_8pm.pt')
-        #model = torch.load('./Models/savedModel_manual_allTrain2.pt')
-        #model = torch.load('./Models/savedModel_manual_PartialTrain.pt')
-        mutationName = np.load('./data/categoryNames.npy')[:-2]
-
-        #print (mutationName)
-        #quit()
-        M = 22
-        #latentMin = 0.1
-
-
-        #latentMin = 0.05
-        latentMin = 0.02
-        #latentMin = 0.005
-
-        #print (mutationName.shape)
-        #quit()
-    elif modelName == 'breast':
-        model = torch.load('./Models/savedModel_breast.pt')
-        mutationName = np.load('./data/mutationNamesBreastLarge.npy')[:-2]
-        M = 406
-        #M = 365
-        #latentMin = 0.01
-        latentMin = 0.1
-
-    else:
-
-        model = torch.load('./Models/savedModel_' + dataName + '.pt')
-
-        lastSize = 0
-        for param in model.parameters():
-            lastSize = param.shape[0]
-        M = lastSize
-        mutationName = np.load('./dataNew/mutationNames_' + modelName + '.npy')
-
-        #Feel free to change this value.
-        latentMin = 0.1
-
-
-
-
-
-    #This creates a matrix representing all of the clones with only one mutation.
-    X = torch.zeros((M, M))
-    X[np.arange(M), np.arange(M)] = 1
-
-    #This gives the predicted probability weights and the predicted latent variables.
-    pred, xNP = model(X)
-
-    X_normal = torch.zeros((1, M))
-    pred_normal, _ = model(X_normal)
-
-    #pred_rel = pred.clone()
-    #for a in range(pred_rel.shape[1]):
-    #    pred_rel[:, a] = pred_rel[:, a] - pred_normal[0, a]
-    #pred_rel = torch.softmax(pred_rel, axis=1)
-    #pred_rel = pred_rel.data.numpy()
-    #pred_rel = np.log(pred_rel)
-
-
-    prob_normal = torch.softmax(pred_normal, axis=1)[0].data.numpy()
-    pred_normal = pred_normal[0].data.numpy()
-
-
-    #This substracts the median from the latent representation, which makes it so the uniteresting mutations have a
-    #value of zero.
-    for a in range(0, 5):
-        xNP[:, a] = xNP[:, a] - np.median(xNP[:, a])
-
-    #This calculates the difference of the value of the latent parameter from the median
-    #If latentSize is large, it means that mutation has at least some significant property.
-    latentSize = np.max(np.abs(xNP), axis=1)
-
-
-
-
-
-    #This finds the "interesting" mutations which have at least some significant property.
-    argsInteresting = np.argwhere(latentSize > latentMin)[:, 0]
-    np.save('./dataNew/interestingMutations_' + modelName + '.npy', argsInteresting)
-
-
-    if False:
-        #plt.plot(xNP[argsInteresting][np.argsort(xNP[argsInteresting, 0])])
-
-        #This plots the latent parameters of the mutations
-        plt.plot(xNP)
-        if modelName == 'manual':
-            plt.ylim(-1.6)
-
-        #plt.title("mutation properties")
-        plt.xlabel("mutation")
-        plt.ylabel("latent variable value")
-        plt.legend(['comp.~1', 'comp.~2', 'comp.~3', 'comp.~4', 'comp.~5'], ncol=2)
-
-
-        #This finds the mutations with substantial enough properties
-        #that they should be annotated, and annotates them with the mutation name.
-        #argsHigh = np.argwhere(latentSize > 0.15)[:, 0]
-
-        argsHigh = np.argwhere(latentSize > 0.02)[:, 0]
-
-
-        #print (argsHigh.shape)
-        #quit()
-
-        for i in argsHigh:
-            name = mutationName[i]
-
-            delt1 = np.max(xNP) / 100
-            max0 = np.max(np.abs(xNP[i])) + (delt1 * 4)
-            sign1 = np.sign(xNP[i][np.argmax(np.abs(xNP[i]))] )
-            max1 = (max0  * sign1) - (delt1 * 3)
-
-            ############plt.annotate(name, (i -  (M / 20), np.max(xNP[i]) + (np.max(xNP) / 100)    ))
-            plt.annotate(name, (i -  (M / 40), max1    ))
-
-
-
-
-        plt.tight_layout()
-        plt.savefig('./images/LatentPlot_' + modelName + '.pdf')
-        plt.show()
-
-        #quit()
-
-
-    #
-    #pred_normal
-
-
-
-    pred2 = pred.reshape((1, -1))
-
-    #This calculates the relative probability of each mutation, for each clone representing a possible initial mutation.
-    #The fitness of the clone is irrelevent to this probability.
-
-    #if False:
-    #    prob = pred
-    #else:
-    prob = torch.softmax(pred, dim=1)
-
-
-
-    #This calculates the relative probability of each mutation clone pair. More fit clones will yeild higher probabilities.
-    prob2 = torch.softmax(pred2, dim=1)
-    prob2 = prob2.reshape(prob.shape)
-
-    prob_np = prob.data.numpy()
-    prob2_np = prob2.data.numpy()
-
-
-
-    #This calculates the total probability that a mutation will be added for each clone.
-    #This is a measurement of the fitness of each clone.
-
-
-
-    prob2_sum = np.sum(prob2_np, axis=1)
-    mutationNamePrint = ['NPM1', 'ASXL1', 'DNMT3A', 'NRAS', 'FLT3', 'IDH1', 'PTPN11', 'FLT3-ITD']
-    mutationNamePrint = np.array(mutationNamePrint)
-
-    ar1 = np.array([prob2_sum, mutationName]).T
-    ar1 = ar1[np.isin(mutationName, mutationNamePrint)]
-
-    #np.save('./sending/proportion/OurFitness.npy', ar1)
-    #print (ar1)
-    #quit()
-
-    #arg1 = np.argwhere(mutationName == 'FLT3')[0, 0]
-    #arg2 = np.argwhere(mutationName == 'PIK3CA')[0, 0]
-    #arg1 = np.argwhere(mutationName == 'GATA3')[0, 0]
-    #arg2 = np.argwhere(mutationName == 'MAP3K1')[0, 0]
-
-    #print (prob2_sum[arg1])
-
-    #quit()
-
-    #0.0394, 0.0546494, 0.052078
-
-    #arg1 = np.argwhere(mutationName == 'NPM1')[0, 0]
-    #arg2 = np.argwhere(mutationName == 'DNMT3A')[0, 0]
-    #arg1 = np.argwhere(mutationName == 'FLT3')[0, 0]
-    #print (prob2_sum[arg1])
-    #print (prob2_sum[arg2])
-    #print (np.median(prob2_sum))
-    #quit()
-
-
-
-
-
-    #This calculates the mutations which have a high enough fitness that they should be annotated
-    #with the mutation name in the plot.
-    argsHigh = np.argwhere(prob2_sum > np.median(prob2_sum) * 1.5)[:, 0]
-    #argsHigh = np.argwhere(prob2_sum > np.median(prob2_sum) * 1.2)[:, 0]
-
-
-
-    if modelName == 'manual':
-        #argsGood = np.argwhere(np.isin(mutationName, mutationNamePrint))[:, 0]
-        argsGood = np.argwhere(prob2_sum < np.median(prob2_sum) * 0.75)[:, 0]
-        argsHigh = np.concatenate((argsHigh, argsGood))
-
-
-    #print (np.sort(prob2_sum))
-    #quit()
-
-    argsHigh = np.argwhere(latentSize > 0.02)[:, 0]
-
-    if False:
-        print (argsHigh.shape)
-        #quit()
-
-        #This plots the relative fitness of all of the mutations in the data set.
-        plt.plot(prob2_sum, c='r')#, yscale="log")
-        plt.scatter( argsHigh, prob2_sum[argsHigh], c='r' )
-        plt.ylabel('fitness')
-        plt.xlabel('mutation')
-        if modelName == 'manual':
-            plt.yscale('log')
-
-        # plt.gca().yaxis.set_major_locator(MultipleLocator(1))
-                # ax.yaxis.set_major_locator(MultipleLocator(1))
-        # plt.gca().set_yscale('log')
-        for i in argsHigh:
-            name = mutationName[i]
-            #################plt.annotate(name, (i -  (M / 20), prob2_sum[i] + (np.max(prob2_sum) / 100)    ))
-            plt.annotate(name, (i , prob2_sum[i] + (np.max(prob2_sum) / 100)    ))
-        plt.tight_layout()
-        plt.savefig('./images/fitnessPlot_' + modelName + '.pdf')
-        plt.show()
-
-        #quit()
-
-
-
-    #pred_np = pred.data.numpy()
-    #print (pred_normal)
-    #for a in range(pred_np.shape[1]):
-    #    pred_np[:, a] = pred_np[:, a] - pred_normal[a]
-    #    pred_np[:, a] = pred_np[:, a] - np.mean(pred_np[:, a])
-    #print (pred_np)
-    #quit()
-
-
-
-
-    #This calculates probabilities of new mutations given the  existing mutations, with the
-    #mutations restricted to the set of interesting mutations.
-    #prob_np_inter = prob_np[argsInteresting][:, argsInteresting]
-    #prob_np_inter = pred_np[argsInteresting][:, argsInteresting]
-    #prob_np_inter = pred_rel[argsInteresting][:, argsInteresting]
-
-
-    #print (prob_np_inter[-1])
-    #print (prob_normal)
-
-    #plt.imshow(prob_np_inter)
-    #plt.show()
-
-    #This adjusts the probability of each new mutation for the fact that in reality,
-    #the already existing mutation can not be selected as the new mutation.
-    #This gives more realistic information, but also removes the information of which mutations would tend to cause
-    #mutations similar to itself to occur.
-    prob_np_adj = np.copy(prob_np)
-    #prob_np_adj[np.arange(prob_np_adj.shape[0]), np.arange(prob_np_adj.shape[0])] = 0
-    for a in range(len(prob_np_adj)):
-        #prob_np_adj[a] = prob_np_adj[a] / np.mean(prob_np_adj[a])
-        #prob_np_adj[:, a] = prob_np_adj[:, a] / prob_normal[a] #np.mean(prob_np_adj[:, a])
-        prob_np_adj[:, a] = prob_np_adj[:, a] / np.mean(prob_np_adj[:, a])
-
-
-    prob_np_adj = np.log(prob_np_adj)
-
-    #print (mutationName)
-
-    arg1 = np.argwhere(mutationName == 'ASXL1')[0, 0]
-    arg2 = np.argwhere(mutationName == 'NPM1')[0, 0]
-    arg3 = np.argwhere(mutationName == 'NRAS')[0, 0]
-    #arg2 = np.argwhere(mutationName == 'FLT3-ITD')[0, 0]
-    #arg3 = np.argwhere(mutationName == 'NPM1')[0, 0]
-    print (prob_np_adj[arg1, arg3])
-    print (prob_np_adj[arg2, arg3])
-    #print (prob_np_adj[arg1, arg3])
-    #print (prob_np_adj[arg3, arg1])
-    quit()
-
-
-
-    argsHighElse = np.copy(argsHigh)
-    argTP = np.argmax(prob2_sum)
-    argsHighElse = argsHighElse[argsHighElse!=argTP]
-    argsLowish = np.argwhere(prob2_sum <= np.median(prob2_sum) * 1.5)[:, 0]
-
-    #print (np.median(prob_np_adj[argTP, argsHighElse]))
-    #print (np.median(prob_np_adj[argTP, argsLowish]))
-    #quit()
-
-
-
-
-
-    if modelName == 'breast':
-        reorder = np.array([4, 0, 1, 2, 3])
-    elif modelName == 'manual':
-
-        reorder = np.array([1, 0, 5, 6, 3, 7, 2, 4])
-        #True
-        #reorder = np.arange(argsInteresting.shape[0])
-
-    doBlank = False
-    if doBlank:
-        arange1 = np.arange(M)
-        argExtra = np.argwhere(np.isin(arange1, argsInteresting) == False)[:, 0]
-        #reorder = np.array([4, 0, 1, 2, 3])
-        argsInteresting = np.concatenate((argsInteresting[reorder], argExtra))
-
-
-
-    prob_np_adj_inter = prob_np_adj[argsInteresting][:, argsInteresting]
-
-    #prob_np_adj_inter = np.log(prob_np_adj_inter)
-
-
-
-
-
-    #else:
-    #    reorder = np.arange(prob_np_adj_inter.shape[0])
-
-    if doBlank:
-        reorder = np.arange(prob_np_adj_inter.shape[0])
-
-
-    #reorder = np.arange(prob_np_adj_inter.shape[0])
-
-
-    prob_np_adj_inter = prob_np_adj_inter[reorder]
-    prob_np_adj_inter = prob_np_adj_inter[:, reorder]
-
-    arange1 = np.arange(prob_np_adj_inter.shape[0])
-    prob_np_adj_inter[arange1, arange1] = 0
-
-    # [DNMT3A, ASXL1, NPM1, NRAS, GATA2, U2AF1] for luekemia
-
-
-    if False:
-
-        vSize = np.max(np.abs(prob_np_adj_inter))
-        vmin = vSize * -1
-        vmax = vSize
-
-        #This is a plot of the causal relationship between all of the interesting mutations,
-        #with the names of the mutations labeled.
-        fig, ax = plt.subplots(1,1)
-
-        #from matplotlib.colors import DivergingNorm
-        #norm = DivergingNorm(vmin=prob_np_adj_inter.min(), vcenter=0, vmax=prob_np_adj_inter.max())
-        plt.imshow(prob_np_adj_inter, vmin=vmin, vmax=vmax, cmap='bwr')
-        img = ax.imshow(prob_np_adj_inter, vmin=vmin, vmax=vmax, cmap='bwr')
-        #img = ax.imshow(pred.data.numpy()[argsInteresting][:, argsInteresting]) #TODO UNDO Jul 25 2022
-        # ax.set_xticks([], minor=True)
-        # ax.xaxis.set_major_locator(MultipleLocator(1))
-        # ax.yaxis.set_major_locator(MultipleLocator(1))
-        plt.grid(False)
-        plt.xlabel("target mutation $t$")
-        plt.ylabel('source mutation $s$')
-        plt.colorbar()
-
-        plt.xticks(rotation = 90)
-        plt.tight_layout()
-        plt.savefig('./images/allOccurancePlot_' + modelName + '.pdf')
-        plt.show()
-
-        quit()
-
-    if True:
-
-        vSize = np.max(np.abs(prob_np_adj_inter))
-        vmin = vSize * -1
-        vmax = vSize
-
-        #This is a plot of the causal relationship between all of the interesting mutations,
-        #with the names of the mutations labeled.
-        fig, ax = plt.subplots(1,1)
-
-        #from matplotlib.colors import DivergingNorm
-        #norm = DivergingNorm(vmin=prob_np_adj_inter.min(), vcenter=0, vmax=prob_np_adj_inter.max())
-        plt.imshow(prob_np_adj_inter, vmin=vmin, vmax=vmax, cmap='bwr')
-        img = ax.imshow(prob_np_adj_inter, vmin=vmin, vmax=vmax, cmap='bwr')
-        #img = ax.imshow(pred.data.numpy()[argsInteresting][:, argsInteresting]) #TODO UNDO Jul 25 2022
-        # ax.set_xticks([], minor=True)
-        # ax.xaxis.set_major_locator(MultipleLocator(1))
-        # ax.yaxis.set_major_locator(MultipleLocator(1))
-        plt.grid(False)
-        plt.xlabel("target mutation $t$")
-        plt.ylabel('source mutation $s$')
-        plt.colorbar()
-        ax.set_yticks(np.arange(argsInteresting.shape[0]))
-        ax.set_yticklabels(mutationName[argsInteresting][reorder])
-
-        ax.set_xticks(np.arange(argsInteresting.shape[0]))
-        ax.set_xticklabels(mutationName[argsInteresting][reorder])
-
-
-        plt.xticks(rotation = 90)
-        plt.tight_layout()
-        plt.savefig('./images/occurancePlot_' + modelName + '.pdf')
-        plt.show()
-
-
-
-#newAnalyzeModel("manual")
-#quit()
 
 
 
@@ -1789,6 +1287,7 @@ if __name__ == "__main__":
 
         infiniteSites = True
         trainSize = 'all'
+        regularizeFactor = 'default'
         inNum2 = inNum+4
         if len(sys.argv) > inNum2:
             ar = sys.argv[inNum2:]
@@ -1800,11 +1299,16 @@ if __name__ == "__main__":
                 arg1 = np.argwhere(np.array(ar) == '-trainSize')[0, 0]
                 trainSize = int(ar[arg1+1])
 
+            if '-regularization' in ar:
+                arg1 = np.argwhere(np.array(ar) == '-regularization')[0, 0]
+                regularizeFactor = float(ar[arg1+1])
+
+
         #print (inputFiles)
         #quit()
 
         #(patient number file) (infinite sites assumption) (training set size)
-        trainModel(inputFiles, modelName, probName, mutationName, patientNames='', inputFormat=inputFormat, infiniteSites=infiniteSites, trainSize=trainSize, maxM=maxM)
+        trainModel(inputFiles, modelName, probName, mutationName, patientNames='', inputFormat=inputFormat, infiniteSites=infiniteSites, trainSize=trainSize, maxM=maxM, regularizeFactor=regularizeFactor)
         #trainModel(['./data/realData/breastCancer.npy'], './temp/model.pt', './temp/prob.npy', './temp/mutationNames.npy', patientNames='', inputFormat='raw', infiniteSites=True, trainSize='all')
 
     elif sys.argv[1] == 'predict':
@@ -1833,102 +1337,8 @@ if __name__ == "__main__":
             saveFile = sys.argv[4]
             giveLatentRepresentations(modelFile, saveFile)
 
-
-    '''
-    if sys.argv[1] == 'custom':
-        if sys.argv[3] == 'train':
-            maxM = int(sys.argv[4])
-            dataName = sys.argv[2]
-            trainPer = float(sys.argv[5])
-            trainRealData(dataName, maxM=maxM, trainPer=trainPer)
-
-        if sys.argv[3] == 'plot':
-            dataName = sys.argv[2]
-            analyzeModel(dataName)
-
-        if sys.argv[3] == 'predict':
-            dataName = sys.argv[2]
-            probPredictedTrees(dataName)
-
-
-
-
-    if sys.argv[1] == 'test':
-
-        if sys.argv[2] == 'causal':
-            if sys.argv[3] == 'train':
-                trainNewSimulations(4, 20)
-            if sys.argv[3] == 'print':
-                testOccurSimulations(4, 20)
-
-
-        if sys.argv[2] == 'pathway':
-            if sys.argv[3] == 'train':
-                trainNewSimulations(1, 32)
-            if sys.argv[3] == 'evaluate':
-                savePathwaySimulationPredictions()
-            if sys.argv[3] == 'print':
-                testPathwaySimulation()
-
-    if sys.argv[1] == 'recap':
-        if sys.argv[2] == 'm5':
-            name = 'M5_m5'
-        if sys.argv[2] == 'm7':
-            name = 'M12_m7'
-        if sys.argv[2] == 'm12':
-            name = 'M12_m12'
-
-        if sys.argv[3] == 'train':
-            trainSimulationModels(name)
-
-        if sys.argv[3] == 'evaluate':
-            evaluateSimulations('M5_m5')
-
-        if sys.argv[3] == 'plot':
-            if sys.argv[4] == 'cluster':
-                doRECAPplot(name, doCluster=True)
-            if sys.argv[4] == 'accuracy':
-                doRECAPplot(name, doCluster=True)
-
-    if sys.argv[1] == 'real':
-
-        if sys.argv[2] == 'proportion':
-            doProportionAnalysis()
-
-        else:
-
-            if sys.argv[3] == 'train':
-                if sys.argv[2] == 'leukemia':
-                    trainRealData('manual')
-                if sys.argv[2] == 'breast':
-                    trainRealData('breast')
-
-            if sys.argv[3] == 'plot':
-                if sys.argv[2] == 'leukemia':
-                    analyzeModel('manual')
-                if sys.argv[2] == 'breast':
-                    analyzeModel('breast')
-
-            if sys.argv[3] == 'predict':
-                if sys.argv[2] == 'leukemia':
-                    probPredictedTrees('manual')
-                if sys.argv[2] == 'breast':
-                    probPredictedTrees('breast')
-    '''
-
-    #Below are analyses from the paper which can be ran.
-    #trainNewSimulations(1, 32)
-    #savePathwaySimulationPredictions()
-    #testPathwaySimulation()
-    #trainRealData('manual')
-    #analyzeModel('manual')
-    #names1 = ['M5_m5', 'M12_m7', 'M12_m12']
-    #trainSimulationModels('M5_m5')
-    #evaluateSimulations('M5_m5')
-    #doRECAPplot('M5_m5', doCluster=False)
-    #trainSimulationModels('M12_m7')
-    #evaluateSimulations('M12_m7')
-    #doRECAPplot('M12_m7', doCluster=False)
-    #trainSimulationModels('M12_m12')
-    #evaluateSimulations('M12_m12')
-    #doRECAPplot('M12_m12', doCluster=False)
+        if sys.argv[2] == 'select':
+            probFile = sys.argv[3]
+            sampleFile = sys.argv[4]
+            saveFile = sys.argv[5]
+            giveTreeSelection(probFile, sampleFile, saveFile)
