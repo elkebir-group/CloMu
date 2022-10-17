@@ -287,7 +287,7 @@ def processTreeData(maxM, fileIn, mutationFile, infiniteSites=True, patientNames
     return newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M
 
 
-def trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=False, baselineSave=False, usePurity=False, adjustProbability=True, trainSet=False, unknownRoot=False, regularizeFactor=0.02):
+def trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=False, baselineSave=False, usePurity=False, adjustProbability=True, trainSet=False, unknownRoot=False, regularizeFactor=0.02, iterations='default'):
 
 
     #This function trains a model to predict the probability of new mutations being added to clones,
@@ -364,6 +364,10 @@ def trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M
     #iterNum = 2000
     #iterNum = 4000
     #iterNum = 5000
+
+
+    if iterations != 'default':
+        iterNum = iterations
 
     for iter in range(0, iterNum):#301): #3000
         doPrint = False
@@ -637,7 +641,7 @@ def trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M
         optimizer.step()
         #quit()
 
-def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=False, baselineSave=False, usePurity=False, adjustProbability=True, trainSet=False, unknownRoot=False, regularizeFactor=0.002):
+def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=False, baselineSave=False, usePurity=False, adjustProbability=True, trainSet=False, unknownRoot=False, regularizeFactor=0.002, iterations='default'):
 
 
     #This function trains a model to predict the probability of new mutations being added to clones,
@@ -696,8 +700,11 @@ def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, max
     print ("The user can stop the code at any time if the testing loss has ")
     print ("converged sufficiently close to the optimum for the user's applicaiton. ")
 
+    iterMax = 1000
+    if iterations != 'default':
+        iterMax = iterations
 
-    for iter in range(0, 1000):#301): #3000
+    for iter in range(0, iterMax):#301): #3000
 
 
         #if True:
@@ -968,7 +975,7 @@ def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, max
 
 
 
-def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patientNames='', inputFormat='simple', infiniteSites=True, trainSize='all', maxM=10, regularizeFactor='default'):
+def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patientNames='', inputFormat='simple', infiniteSites=True, trainSize='all', maxM=10, regularizeFactor='default', iterations='default'):
 
     if inputFormat == 'raw':
         #maxM = 9
@@ -1022,14 +1029,16 @@ def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patien
     #trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave='./banana.pt', baselineSave='./banana.npy', adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=0.015)
     #quit()
 
+
+
     if infiniteSites:
         if regularizeFactor == 'default':
             regularizeFactor = 0.002
-        trainModelTree(newTrees,      sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, trainSet=trainSet, regularizeFactor=regularizeFactor)
+        trainModelTree(newTrees,      sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, trainSet=trainSet, regularizeFactor=regularizeFactor, iterations=iterations)
     else:
         if regularizeFactor == 'default':
             regularizeFactor = 0.015
-        trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=regularizeFactor)
+        trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=regularizeFactor, iterations=iterations)
         #trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, trainSet=trainSet)
 
 
@@ -1288,7 +1297,9 @@ if __name__ == "__main__":
         infiniteSites = True
         trainSize = 'all'
         regularizeFactor = 'default'
+        iterations = 'default'
         inNum2 = inNum+4
+
         if len(sys.argv) > inNum2:
             ar = sys.argv[inNum2:]
 
@@ -1303,12 +1314,16 @@ if __name__ == "__main__":
                 arg1 = np.argwhere(np.array(ar) == '-regularization')[0, 0]
                 regularizeFactor = float(ar[arg1+1])
 
+            if '-iter' in ar:
+                arg1 = np.argwhere(np.array(ar) == '-iter')[0, 0]
+                iterations = int(ar[arg1+1])
+
 
         #print (inputFiles)
         #quit()
 
         #(patient number file) (infinite sites assumption) (training set size)
-        trainModel(inputFiles, modelName, probName, mutationName, patientNames='', inputFormat=inputFormat, infiniteSites=infiniteSites, trainSize=trainSize, maxM=maxM, regularizeFactor=regularizeFactor)
+        trainModel(inputFiles, modelName, probName, mutationName, patientNames='', inputFormat=inputFormat, infiniteSites=infiniteSites, trainSize=trainSize, maxM=maxM, regularizeFactor=regularizeFactor, iterations=iterations)
         #trainModel(['./data/realData/breastCancer.npy'], './temp/model.pt', './temp/prob.npy', './temp/mutationNames.npy', patientNames='', inputFormat='raw', infiniteSites=True, trainSize='all')
 
     elif sys.argv[1] == 'predict':
