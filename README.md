@@ -43,11 +43,11 @@ To predict the probability of a tree, simply include that tree in the data when 
 
 To explicitly make a prediction of one tree per patient given the saved tree probability file, one can run the below command:
 ```bash
-python3 CloMu.py predict select (tree probability file) (file with patient number for each tree) (file to save predictions)
+python3 CloMu.py predict selection (tree probability file) (file with patient number for each tree) (file to save predictions)
 ```
 An example of this is given below.
 ```bash
-python3 CloMu.py predict select ./Models/simulations/I-a/T_4_R_0_baseline.pt.npy ./data/simulations/I-a/T_4_R_0_bulkSample.npz ./treeSelect.npy
+python3 CloMu.py predict selection ./Models/simulations/I-a/T_4_R_0_baseline.pt.npy ./data/simulations/I-a/T_4_R_0_bulkSample.npz ./treeSelect.npy
 ```
 To predict causality one can run the below command:
 ```bash
