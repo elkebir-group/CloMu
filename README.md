@@ -5,72 +5,72 @@ CloMu is a neural network based software for cancer phylogeny analysis.
 Dependencies: python3, pytorch, numpy.
 
 ## How to use CloMu:
-```bash
+
 CloMu.py contains the CloMu software to be used on any data set. 
-```
+
 analysis.py contains specific analysis code used to write the CloMu paper. 
 
 ### Training the Model
 
 To train a model, run the command:
-
+```bash
 python CloMu.py train (input format) (input files) (model file) (tree probability file) (mutation name file) (maximum tree length) (optional arguements) 
-
+```
 As an example, one can run the below code:
-
+```bash
 python CloMu.py train raw ./data/realData/breastCancer.npy ./model.pt ./prob.npy ./mutationNames.npy 9
-
+```
 To be specific, "input format" can either be "raw" or "multi". If using raw, "input files" should be the name of the input file with a list of all trees for all patients. "model file" should be the location you want the model to be stored. "tree probability file" should be the location you want to put the predicted probability for each tree in the input data. "mutation name file" should be the name of the file where you want to store the ordered list of mutation names in your data set. "maximum tree length" should be the maximum tree size you want to analyze. Setting it below the length of the longest tree in your data will simply remove patients with a longer tree sizes. "optional arguements" are additional optional inputs you can add. 
 
 One optional arguement is "-noInfiniteSites", to disable the infinite sites assumption. Below is an example of running the code with this.
-
+```bash
 python CloMu.py train raw ./data/realData/AML.npy ./temp/model.pt ./temp/prob.npy ./temp/mutationNames.npy 10 -noInfiniteSites
-
+```
 Another optional arguement is "-trainSize" followed by an integer number of data points to train on. Below is an example using that feature. 
-
+```bash
 python CloMu.py train raw ./data/realData/breastCancer.npy ./model.pt ./prob.npy ./mutationNames.npy 9  -trainSize 200
-
+```
 Another optional arguement is "-regularization" which should be followed by a real number (something like 0.01) if one wants to modify the strength of the regularization when training the neural network. Additionally there is "-iter" which should be folloed be an integer number of iterations to train the neural network for. 
 
 In addition to the raw input format, we also accept an input format consisting of multiple files. In that case, "input format" should be "multi". Then 'input files" should be (file with a list of trees) (file with the patient number of each tree) (file with the length of each tree). An example is below. 
-
+```bash
 python CloMu.py train multi ./data/simulations/I-a/T_4_R_0_bulkTrees.npz ./data/simulations/I-a/T_4_R_0_bulkSample.npz ./data/simulations/I-a/T_4_R_0_treeSizes.npz  ./model.pt ./prob.npy ./mutationNames.npy 10 -trainSize 500
-
+```
 
 ### Making Predictions
 
 To predict the probability of a tree, simply include that tree in the data when training the model. The tree probabilities will automatically be evaluated. If you wish to predict the probabilities of trees you do not train on, simply include it the data used by the training function but set the "trainSize" such that that data is not trained on. 
 
 To explicitly make a prediction of one tree per patient given the saved tree probability file, one can run the below command:
-
+```bash
 python3 CloMu.py predict select (tree probability file) (file with patient number for each tree) (file to save predictions)
-
+```
 An example of this is given below.
-
+```bash
 python3 CloMu.py predict select ./Models/simulations/I-a/T_4_R_0_baseline.pt.npy ./data/simulations/I-a/T_4_R_0_bulkSample.npz ./treeSelect.npy
-
+```
 To predict causality one can run the below command:
-
+```bash
 python CloMu.py predict causality absolute (model file) (causality file)
-
+```
 An example of this is given below.
-
+```bash
 python CloMu.py predict causality absolute ./Models/simulations/I-a/T_4_R_0_model.pt ./causality.npy
-
+```
 To interpret the matrix saved in this file, note Matrix[s, t] is the causal relationship from s to t. 
 
 To predict relative causality run the below command:
-
+```bash
 python CloMu.py predict causality relative (model file) (causality file)
-
+```
 To predict fitness run the below command:
-
+```bash
 python CloMu.py predict fitness (model file) (fitness file)
-
+```
 To give latent representations of all mutations run the below command:
-
+```bash
 python CloMu.py predict latent (model file) (latent representation file)
-
+```
 
 
 
