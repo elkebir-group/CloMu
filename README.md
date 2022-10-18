@@ -2,6 +2,11 @@
 
 CloMu is a neural network based software for cancer phylogeny analysis.
 
+<p align="center">
+  <img width="400" height="400" src="./overview-crop.pdf">
+</p>
+
+
 Dependencies: python3, pytorch, numpy.
 
 ## How to use CloMu:
