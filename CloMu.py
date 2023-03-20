@@ -32,6 +32,7 @@ def loadEither(name):
     else:
         return np.load(name)
 
+
 class MutationModel(nn.Module):
     def __init__(self, M):
         super(MutationModel, self).__init__()
@@ -287,7 +288,7 @@ def processTreeData(maxM, fileIn, mutationFile, infiniteSites=True, patientNames
     return newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M
 
 
-def trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=False, baselineSave=False, usePurity=False, adjustProbability=True, trainSet=False, unknownRoot=False, regularizeFactor=0.02, iterations='default'):
+def trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=False, baselineSave=False, usePurity=False, adjustProbability=True, trainSet=False, unknownRoot=False, regularizeFactor=0.02, iterations='default', verbose=False):
 
 
     #This function trains a model to predict the probability of new mutations being added to clones,
@@ -375,7 +376,7 @@ def trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M
             doPrint = True
 
         if doPrint:
-            print ('starting iteration ' + str(iter))
+            print ('iteration ' + str(iter) + ' of ' + str(iterMax))
 
 
 
@@ -622,11 +623,11 @@ def trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M
 
         if doPrint:
 
-
-            #print ("")
-            print ('Mean Probability: ', np.mean(baseLine))
-            print ('Training Score: ', score_train, 'Testing Score:', score_test)
-            print ('Loss: ', loss.data.numpy())
+            if verbose:
+                print ("")
+                print ('Mean Probability: ', np.mean(baseLine))
+                print ('Training Score: ', score_train, 'Testing Score:', score_test)
+                print ('Loss: ', loss.data.numpy())
 
             #Saving the probabilities and model.
             if baselineSave and fileSave:
@@ -641,7 +642,7 @@ def trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M
         optimizer.step()
         #quit()
 
-def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=False, baselineSave=False, usePurity=False, adjustProbability=True, trainSet=False, unknownRoot=False, regularizeFactor=0.002, iterations='default'):
+def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=False, baselineSave=False, usePurity=False, adjustProbability=True, trainSet=False, unknownRoot=False, regularizeFactor=0.002, iterations='default', verbose=False):
 
 
     #This function trains a model to predict the probability of new mutations being added to clones,
@@ -697,8 +698,9 @@ def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, max
     recordSamp = np.zeros((100000, N1))
 
     print ("This runs for 1000 iterations.")
-    print ("The user can stop the code at any time if the testing loss has ")
-    print ("converged sufficiently close to the optimum for the user's applicaiton. ")
+    print ("If required, the code can be stopped early.")
+    #print ("The user can stop the code at any time if the testing loss has ")
+    #print ("converged sufficiently close to the optimum for the user's applicaiton. ")
 
     iterMax = 1000
     if iterations != 'default':
@@ -715,7 +717,7 @@ def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, max
             doPrint = True
 
         if doPrint:
-            print ('starting iteration ' + str(iter))
+            print ('iteration ' + str(iter) + ' of ' + str(iterMax))
 
 
         #This is initializing the edges of the generated trees
@@ -953,10 +955,11 @@ def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, max
             #print (baseLine)
             #quit()
 
-            #print ("")
-            print ('Mean Probability: ', np.mean(baseLine))
-            print ('Training Score: ', score_train, 'Testing Score:', score_test)
-            print ('Loss: ', loss.data.numpy())
+            if verbose:
+                print ("")
+                print ('Mean Probability: ', np.mean(baseLine))
+                print ('Training Score: ', score_train, 'Testing Score:', score_test)
+                print ('Loss: ', loss.data.numpy())
 
             #Saving the probabilities and model.
             if baselineSave and fileSave:
@@ -975,13 +978,16 @@ def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, max
 
 
 
-def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patientNames='', inputFormat='simple', infiniteSites=True, trainSize='all', maxM=10, regularizeFactor='default', iterations='default'):
+def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patientNames='', inputFormat='simple', infiniteSites=True, trainSize='all', maxM=10, regularizeFactor='default', iterations='default', verbose=False):
 
     if inputFormat == 'raw':
         #maxM = 9
         newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, inputNameList[0], mutationName, infiniteSites=infiniteSites, patientNames=patientNames)
         #newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, './data/realData/AML.npy', './mutationName.npy')
         #newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, './data/realData/AML.npy', './mutationName.npy', infiniteSites=infiniteSites)
+
+        #print (sampleInverse.shape)
+
 
     #newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, './data/lungData/processed.npy')
     elif inputFormat == 'multi':
@@ -1002,12 +1008,21 @@ def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patien
 
         mutationCategory = ''
 
+    #quit()
 
     if trainSize == 'all':
 
         #N2 = np.unique(sampleInverse).shape[0]
         #trainSet = np.arange(N2)
         trainSet = np.unique(sampleInverse).astype(int)
+
+
+    elif trainSize == 'half':
+
+        trainSet = np.unique(sampleInverse).astype(int)
+        trainSize = trainSet.shape[0] // 2
+        trainSet = trainSet[:trainSize]
+
 
     else:
 
@@ -1034,11 +1049,11 @@ def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patien
     if infiniteSites:
         if regularizeFactor == 'default':
             regularizeFactor = 0.002
-        trainModelTree(newTrees,      sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, trainSet=trainSet, regularizeFactor=regularizeFactor, iterations=iterations)
+        trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, trainSet=trainSet, regularizeFactor=regularizeFactor, iterations=iterations, verbose=verbose)
     else:
         if regularizeFactor == 'default':
             regularizeFactor = 0.015
-        trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=regularizeFactor, iterations=iterations)
+        trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=regularizeFactor, iterations=iterations, verbose=verbose)
         #trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, trainSet=trainSet)
 
 
@@ -1061,6 +1076,23 @@ def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patien
 
 #trainModel(['./data/realData/AML.npy'], './temp/model.pt', './temp/prob.npy', './temp/mutationNames.npy', patientNames='', inputFormat='raw', infiniteSites=False, trainSize='all')
 #trainModel(['./data/simulations/I-a/T_4_R_0_bulkTrees.npz', './data/simulations/I-a/T_4_R_0_bulkSample.npz', './data/simulations/I-a/T_4_R_0_treeSizes.npz'], './temp/model.pt', './temp/prob.npy', './temp/mutationNames.npy', patientNames='', inputFormat='multi', infiniteSites=True, trainSize='all')
+
+
+
+#import tracemalloc
+
+#tracemalloc.start()
+
+
+
+#trainModel(['./data/realData/AML.npy'], './temp/model2.pt', './temp/prob2.npy', './temp/mutationNames2.npy', patientNames='', inputFormat='raw', infiniteSites=False, trainSize='all', maxM=10)
+#trainModel(['./data/realData/breastCancer.npy'], './temp/modelB.pt', './temp/probB.npy', './temp/mutationNamesB.npy', patientNames='', inputFormat='raw', infiniteSites=True, trainSize='all', maxM=9)
+
+
+#print(tracemalloc.get_traced_memory())
+#tracemalloc.stop()
+
+
 #quit()
 
 #prob = np.load('./temp/prob.npy')
@@ -1256,6 +1288,19 @@ def giveTreeSelection(probFile, sampleFile, saveFile):
 
 
 
+def printFitness(saveFile, mutationNameFile):
+
+    fitness = np.load(saveFile)
+    names = np.load(mutationNameFile)
+
+    median = np.median(fitness)
+
+    highFit = np.argwhere(fitness > (median * 1.3))[:, 0]
+
+    print ('high fitness mutations:')
+    for a in highFit:
+        print (names[a])
+
 
 import sys
 
@@ -1300,6 +1345,8 @@ if __name__ == "__main__":
         iterations = 'default'
         inNum2 = inNum+4
 
+        verbose = False
+
         if len(sys.argv) > inNum2:
             ar = sys.argv[inNum2:]
 
@@ -1318,12 +1365,15 @@ if __name__ == "__main__":
                 arg1 = np.argwhere(np.array(ar) == '-iter')[0, 0]
                 iterations = int(ar[arg1+1])
 
+            if '-verbose' in ar:
+                verbose=True
+
 
         #print (inputFiles)
         #quit()
 
         #(patient number file) (infinite sites assumption) (training set size)
-        trainModel(inputFiles, modelName, probName, mutationName, patientNames='', inputFormat=inputFormat, infiniteSites=infiniteSites, trainSize=trainSize, maxM=maxM, regularizeFactor=regularizeFactor, iterations=iterations)
+        trainModel(inputFiles, modelName, probName, mutationName, patientNames='', inputFormat=inputFormat, infiniteSites=infiniteSites, trainSize=trainSize, maxM=maxM, regularizeFactor=regularizeFactor, iterations=iterations, verbose=verbose)
         #trainModel(['./data/realData/breastCancer.npy'], './temp/model.pt', './temp/prob.npy', './temp/mutationNames.npy', patientNames='', inputFormat='raw', infiniteSites=True, trainSize='all')
 
     elif sys.argv[1] == 'predict':
@@ -1352,8 +1402,15 @@ if __name__ == "__main__":
             saveFile = sys.argv[4]
             giveLatentRepresentations(modelFile, saveFile)
 
-        if sys.argv[2] == 'select':
+        if sys.argv[2] == 'selection':
             probFile = sys.argv[3]
             sampleFile = sys.argv[4]
             saveFile = sys.argv[5]
             giveTreeSelection(probFile, sampleFile, saveFile)
+
+    elif sys.argv[1] == 'show':
+
+        if sys.argv[2] == 'fitness':
+            saveFile = sys.argv[3]
+            mutationNameFile = sys.argv[4]
+            printFitness(saveFile, mutationNameFile)
