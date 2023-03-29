@@ -55,7 +55,7 @@ An example of this is given below.
 ```bash
 python3 CloMu.py predict selection ./Models/simulations/I-a/T_4_R_0_baseline.pt.npy ./data/simulations/I-a/T_4_R_0_bulkSample.npz ./treeSelect.npy
 ```
-To predict causality one can run the below command:
+To predict absolute causality one can run the below command:
 ```bash
 python CloMu.py predict causality absolute (model file) (causality file)
 ```
