@@ -8,13 +8,13 @@ CloMu is a neural network based software for cancer phylogeny analysis.
 
 Dependencies: python3, pytorch, numpy.
 
-## How to use CloMu:
+## How to use CloMu
 
-CloMu.py contains the CloMu software to be used on any data set. 
+[CloMu.py](CloMu.py) contains the CloMu software to be used on any data set. 
 
-script.py is a script which runs and saves results from the CloMu paper. 
+[script.py](script.py) is a script which runs and saves results from the CloMu paper. 
 
-analysis.py contains the analysis code which was originally used when writing the CloMu paper. 
+[analysis.py](analysis.py) contains the analysis code which was originally used when writing the CloMu paper. 
 
 ### Training the Model
 
