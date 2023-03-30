@@ -18,7 +18,7 @@ If you trained the model using the command provided, then to predict fitness val
 python CloMu.py predict fitness ./model.pt ./fit.csv -csv ./mutationNames.npy
 ```
 
-To predict relative causality, run the command:
+To predict relative causality utilizing the pretrained model, run the command:
 ```bash
 python CloMu.py predict causality relative ./Models/realData/savedModel_breast.pt-csv ./data/realData/breastCancermutationNames.npy
 ```
