@@ -12,6 +12,8 @@ Dependencies: python3, pytorch, numpy.
 
 [CloMu.py](CloMu.py) contains the CloMu software to be used on any data set. 
 
+[Demo.md](Demo.md) contains a demo for running CloMu. 
+
 [script.py](script.py) is a script which runs and saves results from the CloMu paper. 
 
 [analysis.py](analysis.py) contains the analysis code which was originally used when writing the CloMu paper. 
