@@ -64,15 +64,21 @@ An example of this is given below.
 python CloMu.py predict causality absolute ./Models/simulations/I-a/T_4_R_0_model.pt ./causality.npy
 ```
 To interpret the matrix saved in this file, note Matrix[s, t] is the causal relationship from s to t. 
+Additionally, for ease of interpretation, one save it as a CSV file with labeled mutations by using the below command:
+```bash
+python CloMu.py predict causality absolute (model file) (causality file) -csv (mutation name file)
+```
 
 To predict relative causality run the below command:
 ```bash
 python CloMu.py predict causality relative (model file) (causality file)
 ```
+This command can also be modified by adding " -csv (mutation name file)" to save as a csv. 
 To predict fitness run the below command:
 ```bash
 python CloMu.py predict fitness (model file) (fitness file)
 ```
+Again, add " -csv (mutation name file)" to save as a csv. 
 To give latent representations of all mutations run the below command:
 ```bash
 python CloMu.py predict latent (model file) (latent representation file)
