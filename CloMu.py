@@ -697,10 +697,11 @@ def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, max
     recordBase = np.zeros((100000, N1))
     recordSamp = np.zeros((100000, N1))
 
-    print ("This runs for 1000 iterations.")
-    print ("If required, the code can be stopped early.")
-    #print ("The user can stop the code at any time if the testing loss has ")
-    #print ("converged sufficiently close to the optimum for the user's applicaiton. ")
+    print ("The code runs for 1000 iterations.")
+    #print ("If required, the code can be stopped early.")
+    if verbose:
+        print ("The user can stop the code at any time if the testing loss has ")
+        print ("converged sufficiently close to the optimum for the user's applicaiton. ")
 
     iterMax = 1000
     if iterations != 'default':
@@ -1048,7 +1049,7 @@ def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patien
 
     if infiniteSites:
         if regularizeFactor == 'default':
-            regularizeFactor = 0.002
+            regularizeFactor = 0.0002
         trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelName, baselineSave=treeSelectionName, trainSet=trainSet, regularizeFactor=regularizeFactor, iterations=iterations, verbose=verbose)
     else:
         if regularizeFactor == 'default':
@@ -1105,7 +1106,7 @@ def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patien
 #plt.show()
 
 
-def giveAbsoluteCausality(modelFile, saveFile):
+def giveAbsoluteCausality(modelFile, saveFile, useCSV, nameFile):
 
 
 
@@ -1140,7 +1141,30 @@ def giveAbsoluteCausality(modelFile, saveFile):
     #plt.show()
     #quit()
 
-    np.save(saveFile, output_np)
+    if useCSV:
+
+
+
+        sum1 = np.sum(output_np, axis=1)
+        diff1 = np.abs(sum1 - np.median(sum1)) / np.median(sum1)
+        argsort1 = np.argsort(diff1)[-1::-1]
+        argsort1 = argsort1[diff1 > 0.1]
+
+        output_np[np.arange(output_np.shape[0]), np.arange(output_np.shape[0])] = 0
+
+        output_mod = np.empty( (argsort1.shape[0]+1, argsort1.shape[0]+1) , dtype="<U10")
+        output_mod = output_mod.astype(str)
+
+
+        output_mod[1:, 1:] = np.copy(output_np[argsort1][:, argsort1]).astype(str)
+        names = np.load(nameFile)[:-2]
+        output_mod[0, 1:] = np.copy(names[argsort1])
+        output_mod[1:, 0] = np.copy(names[argsort1])
+
+        np.savetxt(saveFile, output_mod, delimiter=",", fmt='%s')
+    else:
+
+        np.save(saveFile, output_np)
 
 
 #modelFile = './Models/simulations/I-a/T_' + str(4) + '_R_' + str(0) + '_model.pt'
@@ -1150,7 +1174,7 @@ def giveAbsoluteCausality(modelFile, saveFile):
 #quit()
 
 
-def giveRelativeCausality(modelFile, saveFile, meanAdjust=False):
+def giveRelativeCausality(modelFile, saveFile, useCSV, nameFile, meanAdjust=False):
 
 
 
@@ -1193,7 +1217,26 @@ def giveRelativeCausality(modelFile, saveFile, meanAdjust=False):
 
     prob_np_adj = np.log(prob_np_adj)
 
-    np.save(saveFile, prob_np_adj)
+
+    if useCSV:
+
+        effectSize = np.sum(np.abs(prob_np_adj), axis=1)
+        argImpact = np.argwhere(effectSize > np.median(effectSize) * 1.1)[:, 0]
+        argImpact = argImpact[np.argsort(effectSize[argImpact])[-1::-1]]
+
+
+
+        output_mod = np.empty( (argImpact.shape[0]+1, argImpact.shape[0]+1) , dtype="<U10")
+        output_mod = output_mod.astype(str)
+        output_mod[1:, 1:] = np.copy(prob_np_adj[argImpact][:, argImpact]).astype(str)
+        names = np.load(nameFile)[:-2]
+        output_mod[0, 1:] = np.copy(names[argImpact])
+        output_mod[1:, 0] = np.copy(names[argImpact])
+
+        np.savetxt(saveFile, output_mod, delimiter=",", fmt='%s')
+    else:
+
+        np.save(saveFile, prob_np_adj)
 
 
 
@@ -1202,7 +1245,7 @@ def giveRelativeCausality(modelFile, saveFile, meanAdjust=False):
 #quit()
 
 
-def giveLatentRepresentations(modelFile, saveFile):
+def giveLatentRepresentations(modelFile, saveFile, useCSV, nameFile):
 
 
 
@@ -1224,7 +1267,27 @@ def giveLatentRepresentations(modelFile, saveFile):
     for a in range(xNP.shape[1]):
         xNP[:, a] = xNP[:, a] - np.median(xNP[:, a])
 
-    np.save(saveFile, xNP)
+
+    if useCSV:
+
+        names = np.load(nameFile)[:-2]
+
+        import matplotlib.pyplot as plt
+
+
+
+        diff1 = np.sum(np.abs(xNP), axis=1)
+        argImpact = np.argwhere(diff1 > 0.1)[:, 0]
+        argImpact = argImpact[np.argsort(diff1[argImpact])[-1::-1]]
+
+        both = np.concatenate((  names.reshape((-1, 1)) , xNP  ), axis=1)
+        both = both.astype(str)[argImpact]
+
+        np.savetxt(saveFile, both, delimiter=",", fmt='%s')
+
+    else:
+
+        np.save(saveFile, xNP)
 
 
 #modelFile = './Models/simulations/I-a/T_' + str(4) + '_R_' + str(0) + '_model.pt'
@@ -1232,7 +1295,7 @@ def giveLatentRepresentations(modelFile, saveFile):
 #quit()
 
 
-def giveFitness(modelFile, saveFile):
+def giveFitness(modelFile, saveFile, useCSV, nameFile):
 
 
 
@@ -1262,7 +1325,22 @@ def giveFitness(modelFile, saveFile):
     #plt.plot(prob2_sum)
     #plt.show()
 
-    np.save(saveFile, prob2_sum)
+    #print ('hi', useCSV)
+
+    if useCSV:
+
+        names = np.load(nameFile)[:-2]
+
+        diff1 = np.abs(prob2_sum - np.median(prob2_sum)) / np.median(prob2_sum)
+        argImpact = np.argwhere(diff1 > 0.1)[:, 0]
+        argImpact = argImpact[np.argsort(diff1[argImpact])[-1::-1]]
+
+        both = np.array([names, prob2_sum])[:, argImpact]
+
+        np.savetxt(saveFile, both, delimiter=",", fmt='%s')
+
+    else:
+        np.save(saveFile, prob2_sum)
 
 
 
@@ -1384,23 +1462,59 @@ if __name__ == "__main__":
 
                 modelFile = sys.argv[4]
                 saveFile = sys.argv[5]
-                giveAbsoluteCausality(modelFile, saveFile)
+                useCSV = False
+                if len(sys.argv) > 6:
+                    if sys.argv[6] == '-csv':
+                        useCSV = True
+                nameFile = 'False'
+                if len(sys.argv) > 7:
+                    nameFile = sys.argv[7]
+
+                giveAbsoluteCausality(modelFile, saveFile, useCSV, nameFile)
 
             if sys.argv[3] == 'relative':
 
                 modelFile = sys.argv[4]
                 saveFile = sys.argv[5]
-                giveRelativeCausality(modelFile, saveFile)
+                useCSV = False
+                if len(sys.argv) > 6:
+                    if sys.argv[6] == '-csv':
+                        useCSV = True
+                nameFile = 'False'
+                if len(sys.argv) > 7:
+                    nameFile = sys.argv[7]
+
+                giveRelativeCausality(modelFile, saveFile, useCSV, nameFile)
 
         if sys.argv[2] == 'fitness':
             modelFile = sys.argv[3]
             saveFile = sys.argv[4]
-            giveFitness(modelFile, saveFile)
+
+            useCSV = False
+            if len(sys.argv) > 5:
+                if sys.argv[5] == '-csv':
+                    useCSV = True
+            nameFile = 'False'
+            if len(sys.argv) > 6:
+                nameFile = sys.argv[6]
+
+            giveFitness(modelFile, saveFile, useCSV, nameFile)
 
         if sys.argv[2] == 'latent':
             modelFile = sys.argv[3]
             saveFile = sys.argv[4]
-            giveLatentRepresentations(modelFile, saveFile)
+
+
+            useCSV = False
+            if len(sys.argv) > 5:
+                if sys.argv[5] == '-csv':
+                    useCSV = True
+            nameFile = 'False'
+            if len(sys.argv) > 6:
+                nameFile = sys.argv[6]
+
+
+            giveLatentRepresentations(modelFile, saveFile, useCSV, nameFile)
 
         if sys.argv[2] == 'selection':
             probFile = sys.argv[3]
