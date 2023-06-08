@@ -2482,7 +2482,6 @@ def makeOccurSimulation():
 #quit()
 
 
-
 def makeNewOccur():
 
     for a in range(0, 1):
@@ -2708,7 +2707,7 @@ def makeBootstrap():
 
 
     #dataName = 'AML'
-    #dataName = 'breast'
+    dataName = 'breast'
     #dataName = 'I-a'
 
 
@@ -2738,7 +2737,9 @@ def makeBootstrap():
         sampleInverse = loadnpz('./data/simulations/' + folder1 + '/T_' + str(T) + '_R_' + str(R) + '_bulkSample.npz')
 
 
-    for R2 in range(0, 100):
+    for R2 in range(20, 100):
+
+        print (R2)
 
         if dataName == 'I-a':
             N = 500
@@ -2791,7 +2792,7 @@ def makeBootstrap():
 
 
 
-        #quit()
+        quit()
         #
         np.savez_compressed('./data/simulations/' + folder2 + '/T_' + str(T2) + '_R_' + str(R2) + '_treeSizes.npz', treeSizes2)
         np.savez_compressed('./data/simulations/' + folder2 + '/T_' + str(T2) + '_R_' + str(R2) + '_bulkTrees.npz', trees2)
@@ -2800,11 +2801,6 @@ def makeBootstrap():
 
 #makeBootstrap()
 #quit()
-
-
-
-
-
 
 
 def makePathwaySimulation():
@@ -2940,9 +2936,6 @@ def makePathwaySimulation():
         np.savez_compressed('./data/specialSim/dataSets/T_6_R_' + str(saveNum) + '_bulkSample.npz', sampleInverse)
 
 
-
-
-
 def makeNonlinSimulation():
 
 
@@ -3056,11 +3049,6 @@ def makeNonlinSimulation():
         np.savez_compressed('./data/simulations/nonlinear/T_' + str(T) + '_R_' + str(saveNum) + '_bulkSample.npz', sampleInverse)
 
 
-#makeNonlinSimulation()
-#quit()
-
-
-
 def makeLatentSimulation():
 
 
@@ -3144,12 +3132,6 @@ def makeLatentSimulation():
 
         np.savez_compressed('./data/simulations/latent/T_0_R_' + str(saveNum) + '_bulkTrees.npz', trees)
         np.savez_compressed('./data/simulations/latent/T_0_R_' + str(saveNum) + '_bulkSample.npz', sampleInverse)
-
-
-
-#makeLatentSimulation()
-#quit()
-
 
 
 def makeSimBasedReal():
@@ -3383,9 +3365,253 @@ def makeSimBasedReal():
         #quit()
 
 
-#makeSimBasedReal()
+
+def mapTrees(trees1, trees2, treeSizes):
+
+    for a in range(trees1.shape[0]):
+
+        treeSize = int(treeSizes[a])
+
+        tree1 = trees1[a, :treeSize]
+        tree1_flat = tree1.reshape((tree1.shape[0]*tree1.shape[1],))
+        unique1 = np.unique(tree1_flat)
+
+        tree2 = trees2[a, :treeSize]
+        tree2_flat = tree2.reshape((tree2.shape[0]*tree2.shape[1],))
+        _, inverse2 = np.unique(tree2_flat, return_inverse=True)
+        tree2_new = unique1[inverse2]
+        tree2_new = tree2_new.reshape(tree1.shape)
+
+
+        trees2[a,  :treeSize] = np.copy(tree2_new)
+
+    return trees2
+
+
+def treePermuation(trees1, treeSizes):
+
+    trees2 = np.copy(trees1)
+
+    for a in range(trees1.shape[0]):
+        treeSize = int(treeSizes[a])
+        tree1 = trees1[a, :treeSize]
+        tree1_flat = tree1.reshape((tree1.shape[0]*tree1.shape[1],))
+
+        unique1, inverse1 = np.unique(tree1_flat, return_inverse=True)
+
+        perm1 = np.random.permutation(unique1.shape[0] - 1)
+        unique1_perm = np.copy(unique1)
+        unique1_perm[:perm1.shape[0]] = unique1_perm[perm1]
+
+        tree2_flat = unique1_perm[inverse1]
+        tree2 = tree2_flat.reshape(tree1.shape)
+
+        #print (tree1)
+        #print (tree2)
+        #quit()
+
+        trees2[a, :treeSize] = np.copy(tree2)
+
+    return trees2
+
+
+
+def makeWithRandomOccur():
+
+    for a in range(0, 20):
+
+        #This runs a simple simulation of causal relationships.
+
+
+
+        print (a)
+
+
+        folder1 = 'random'
+        T = 4
+
+
+        numInter = 1
+
+        S = 5 #5 samples in the bulk frequency sampling
+        M = 10
+
+
+
+        K = 6 #6 types of mutations. 5 interesting mutations, and the remaining 5 mutations are "boring" mutations.
+
+
+        mutationType = np.arange(M)
+        mutationType[mutationType >= K] = K - 1
+
+        mutationTypeMatrix_extended = np.zeros((M, K+1))
+        mutationTypeMatrix_extended[np.arange(M), mutationType] = 1
+
+
+        mutationTypeMatrix = np.copy(mutationTypeMatrix_extended[:, :-1])
+
+        #This gives random causal relationships between all of the interesting mutations.
+        #Note, the causal relationship from mutation A to mutation B is independent
+        #of the relationship from B to A.
+        probabilityMatrix = np.random.randint(2, size=(K+1) *  K).reshape((K+1, K))
+
+
+        if folder1 == 'negativeInter':
+            probabilityMatrix[np.arange(5), np.arange(5)] = -1
+
+
+        probabilityMatrix = probabilityMatrix * np.log(11)
+        probabilityMatrix[K] = 0
+        probabilityMatrix[K-1, :] = 0
+        probabilityMatrix[:, K-1] = 0
+
+
+        #This makes sure the trees are not larger than the number of mutations. Otherwise,
+        #it sets the tree size to a default value of 7.
+        treeSize = min(7, M) #7
+
+        skipSizes = False
+        N = 1000
+
+
+
+
+
+
+        if not T in [2]:
+            #This runs the simulation given the causal relationships, mutations, and mutation types.
+            edges, clones = makePartSimulation(probabilityMatrix, mutationTypeMatrix, mutationTypeMatrix_extended, N, M, K, treeSize)
+
+        probabilityMatrix_random = probabilityMatrix * 0
+        if T in [2]:
+            edges, clones= makePartSimulation(probabilityMatrix_random, mutationTypeMatrix, mutationTypeMatrix_extended, N, M, K, treeSize)
+
+        treeSizes = np.random.randint(3, size=edges.shape[0]) + 5
+
+
+
+        if T in [0, 1, 2, 3, 4]:
+            edges_random2, clones_random2 = makePartSimulation(probabilityMatrix_random, mutationTypeMatrix, mutationTypeMatrix_extended, N, M, K, treeSize)
+            edges_random2 = mapTrees(edges, edges_random2, treeSizes)
+
+        #if T in [3, 4]:
+        #    edges_random2 = treePermuation(edges, treeSizes)
+
+        if T in [3, 4]:
+            edges_random3, clones_random3 = makePartSimulation(probabilityMatrix_random, mutationTypeMatrix, mutationTypeMatrix_extended, N, M, K, treeSize)
+            edges_random3 = mapTrees(edges, edges_random3, treeSizes)
+
+        if T in [4]:
+            edges_random4, _ = makePartSimulation(probabilityMatrix_random, mutationTypeMatrix, mutationTypeMatrix_extended, N, M, K, treeSize)
+            edges_random4 = mapTrees(edges, edges_random4, treeSizes)
+
+            edges_random5, _ = makePartSimulation(probabilityMatrix_random, mutationTypeMatrix, mutationTypeMatrix_extended, N, M, K, treeSize)
+            edges_random5 = mapTrees(edges, edges_random5, treeSizes)
+
+            edges_random6, _ = makePartSimulation(probabilityMatrix_random, mutationTypeMatrix, mutationTypeMatrix_extended, N, M, K, treeSize)
+            edges_random6 = mapTrees(edges, edges_random6, treeSizes)
+
+
+
+        #quit()
+
+        #edges_random3, clones_random3 = makePartSimulation(probabilityMatrix_random, mutationTypeMatrix, mutationTypeMatrix_extended, N, M, K, treeSize)
+        #edges_random4, clones_random4 = makePartSimulation(probabilityMatrix_random, mutationTypeMatrix, mutationTypeMatrix_extended, N, M, K, treeSize)
+        #edges_random5, clones_random5 = makePartSimulation(probabilityMatrix_random, mutationTypeMatrix, mutationTypeMatrix_extended, N, M, K, treeSize)
+
+
+
+
+        for b in range(len(treeSizes)):
+            size1 = treeSizes[b]
+            #if T != 2:
+            edges[b, size1:] = M + 1
+            clones[b, size1+1:] = 0
+
+            #edges_random[b, size1:] = M + 1
+
+            #if T == [0, 1]:
+            edges_random2[b, size1:] = M + 1
+            if T in [3, 4]:
+                edges_random3[b, size1:] = M + 1
+            if T == 4:
+                edges_random4[b, size1:] = M + 1
+                edges_random5[b, size1:] = M + 1
+                edges_random6[b, size1:] = M + 1
+
+
+
+
+
+
+
+
+        if T in [0, 1, 2]:
+            trees = np.concatenate((edges, edges_random2), axis=0)
+        if T == 3:
+            trees = np.concatenate((edges, edges_random2, edges_random3), axis=0)
+        if T == 4:
+            trees = np.concatenate((edges, edges_random2, edges_random3), axis=0)
+        #    trees = np.concatenate((edges, edges_random2, edges_random3, edges_random4, edges_random5, edges_random6), axis=0)
+
+
+        #sampleInverse = np.arange(trees.shape[0]) % edges.shape[0]
+
+        #if T == 1:
+        #    sampleInverse = np.concatenate((   np.arange(N), np.arange(N//2)*2  ))
+        #else:
+        sampleInverse = np.arange(trees.shape[0]) % edges.shape[0]
+
+        #sample_argsort = np.argsort(sampleInverse)
+
+        if T in [0, 1, 2]:
+            sample_argsort = np.array([np.arange(edges.shape[0]), np.arange(edges.shape[0])+edges.shape[0]]).T
+        if T in [3]:
+            sample_argsort = np.array([np.arange(edges.shape[0]), np.arange(edges.shape[0])+edges.shape[0], np.arange(edges.shape[0])+(edges.shape[0] * 2)  ] ).T
+        if T in [4]:
+            #sample_argsort = np.array([np.arange(edges.shape[0]), np.arange(edges.shape[0])+edges.shape[0], np.arange(edges.shape[0])+(edges.shape[0] * 2)  ] ).T
+            sample_argsort = np.zeros((edges.shape[0], 3), dtype=int)
+            for c in range(3):
+                sample_argsort[:, c] = np.copy(  np.arange(edges.shape[0])+(edges.shape[0] * c)   )
+
+        sample_argsort = sample_argsort.reshape((trees.shape[0],))
+
+        #plt.plot(sample_argsort)
+        #plt.show()
+        #quit()
+        trees = trees[sample_argsort]
+        sampleInverse = sampleInverse[sample_argsort]
+
+        trees[trees == 100] = M
+        trees[trees == 101] = M + 1
+
+        print ('T', T)
+        quit()
+
+
+        np.savez_compressed('./data/simulations/' + folder1 + '/T_' + str(T) + '_R_' + str(a) + '_bulkTrees.npz', trees)
+        np.savez_compressed('./data/simulations/' + folder1 + '/T_' + str(T) + '_R_' + str(a) + '_bulkSample.npz', sampleInverse)
+        np.savez_compressed('./data/simulations/' + folder1 + '/T_' + str(T) + '_R_' + str(a) + '_treeSizes.npz', treeSizes)
+        #if T != 2:
+        np.savez_compressed('./data/simulations/' + folder1 + '/T_' + str(T) + '_R_' + str(a) + '_trees.npz', edges)
+        np.savez_compressed('./data/simulations/' + folder1 + '/T_' + str(T) + '_R_' + str(a) + '_mutationType.npz', mutationType)
+        np.savez_compressed('./data/simulations/' + folder1 + '/T_' + str(T) + '_R_' + str(a) + '_prob.npz', probabilityMatrix)
+
+        '''
+        np.savez_compressed('./data/simulations/' + folder1 + '/T_' + str(T) + '_R_' + str(a) + '_treeSizes.npz', treeSizes)
+        np.savez_compressed('./data/simulations/' + folder1 + '/T_' + str(T) + '_R_' + str(a) + '_trees.npz', edges)
+        np.savez_compressed('./data/simulations/' + folder1 + '/T_' + str(T) + '_R_' + str(a) + '_mutationType.npz', mutationType)
+        np.savez_compressed('./data/simulations/' + folder1 + '/T_' + str(T) + '_R_' + str(a) + '_prob.npz', probabilityMatrix)
+        #'''
+
+        print ("Saved")
+
+
+
+#makeWithRandomOccur()
 #quit()
-#
+
+
 
 
 def plotEffectSize():
@@ -3398,10 +3624,6 @@ def plotEffectSize():
     plt.gcf().set_size_inches(8, 6)
     plt.savefig('./images/effectSizeDistribution.pdf')
     plt.show()
-
-
-#plotEffectSize()
-#quit()
 
 def plotMutationFrequency():
 
@@ -3426,10 +3648,6 @@ def plotMutationFrequency():
     plt.savefig('./images/mutationFrequency.pdf')
     plt.show()
 
-#plotMutationFrequency()
-#quit()
-
-
 def saveTreeSizes():
 
     if False:
@@ -3449,11 +3667,6 @@ def saveTreeSizes():
 
 
     np.savez_compressed(file2, treeSizes)
-
-
-#saveTreeSizes()
-#quit()
-
 
 def plotTreeSizes():
 
@@ -3482,10 +3695,6 @@ def plotTreeSizes():
     #plt.show()
 
     quit()
-
-#plotTreeSizes()
-#quit()
-
 
 def trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=False, baselineSave=False, usePurity=False, adjustProbability=False, trainSet=False, unknownRoot=False, regularizeFactor=0.02, nonLin=True):
 
@@ -4244,14 +4453,6 @@ def trainRealData(dataName, maxM=10, trainPer=0.666):
                             adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=0.0005) #0.00005 #0.0005 #too small 0.00001
     #'''
 
-
-
-#trainRealData('AML')
-#quit()
-
-
-
-
 def doProportionAnalysis():
 
     import matplotlib.pyplot as plt
@@ -4355,6 +4556,24 @@ def doProportionAnalysis():
     print (np.median(  np.log(ar8[:, 1] / ar8[:, 0]) ))
 
 
+    v1 = np.mean(  np.log(ar1[:, 1] / ar1[:, 0]) ) #NP
+    v2 = np.mean(  np.log(ar2[:, 1] / ar2[:, 0]) ) #AS
+    v3 = np.mean(  np.log(ar3[:, 1] / ar3[:, 0]) ) #DMT
+    v4 = np.median(  np.log(ar4[:, 1] / ar4[:, 0]) )
+    v5 = np.median(  np.log(ar5[:, 1] / ar5[:, 0]) )
+    v6 = np.median(  np.log(ar6[:, 1] / ar6[:, 0]) )
+    v7 = np.median(  np.log(ar7[:, 1] / ar7[:, 0]) )
+    v8 = np.median(  np.log(ar8[:, 1] / ar8[:, 0]) )
+
+    vHigh = np.array([v1, v2, v3])
+    vLow = np.array([v4, v5, v6, v7, v8])
+
+    print (np.mean(vHigh))
+    print (np.mean(vLow))
+    quit()
+
+
+
     #print (np.median(prop[label1== 5]))
     quit()
 
@@ -4378,9 +4597,9 @@ def doProportionAnalysis():
         print (str(mean1)[:5] + str(' +- ') + str(sig1)[:5])
 
 
-
 #doProportionAnalysis()
 #quit()
+
 
 
 def trainMHNsim():
@@ -4447,14 +4666,7 @@ def trainMHNsim():
 
 
                     trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=fullSaveFolder + str(b) + '_12.pt', baselineSave=fullSaveFolder + 'baseline_' +  str(b) + '.npy',
-                                        adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=0.0005 * 2)# * 0.2) #0.00005 #0.0005 #too small 0.00001
-
-                    #2 for 10
-                    #quit()
-
-#trainMHNsim()
-#quit()
-
+                                        adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=0.0005 * 2)
 
 
 def trainBootAML():
@@ -4497,18 +4709,12 @@ def trainBootAML():
                             adjustProbability=True, trainSet=trainSet, unknownRoot=True, regularizeFactor=0.01, nonLin=True) #0.02
 
 
-#trainBootAML()
-#quit()
-
-
-
-
 def trainNewSimulations(folder1, folder2, T, N, modL=False, regFactor=0.0002, Niter=1000):
 
     #This function trains models on the new simulated data sets formed by this paper.
 
 
-    for a in range(0, 1):
+    for a in range(0, 20):
 
 
 
@@ -4575,18 +4781,7 @@ def trainNewSimulations(folder1, folder2, T, N, modL=False, regFactor=0.0002, Ni
         trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, maxM, fileSave=modelFile, baselineSave=baselineFile, adjustProbability=True, trainSet=trainSet, unknownRoot=True, regFactor=regFactor, Niter=Niter)
 
 
-#trainNewSimulations(9, 20)
-#trainNewSimulations(10, 20)
-#trainNewSimulations(11, 20)
-#trainNewSimulationsx(12, 20)
-#trainNewSimulations(13, 20)
-#trainNewSimulations(14, 20)
-#quit()
 
-#folder1 = './data/simulations/negativeInter'
-#folder2 = './Models/simulations/negativeInter'
-#trainNewSimulations(folder1, folder2, 0, 1, modL=True, regFactor=0.001)
-#quit()
 
 #import tracemalloc
 #import time
@@ -4594,62 +4789,69 @@ def trainNewSimulations(folder1, folder2, T, N, modL=False, regFactor=0.0002, Ni
 #tracemalloc.start()
 #time1 = time.time()
 
-folder1 = './data/simulations/fewSamples'
-folder2 = './Models/simulations/fewSamples'
-#trainNewSimulations(folder1, folder2, 0, 1)
+
+folder1 = './data/simulations/random'
+folder2 = './Models/simulations/random'
+#trainNewSimulations(folder1, folder2, 3, 1)
+#quit()
+
+
+#folder1 = './data/simulations/fewSamples'
+#folder2 = './Models/simulations/fewSamples'
+#############trainNewSimulations(folder1, folder2, 0, 1)
 #quit()
 
 
 
 folder1 = './data/simulations/I-a'
 folder2 = './Models/simulations/I-a'
-#trainNewSimulations(folder1, folder2, 4, 1)
+########trainNewSimulations(folder1, folder2, 4, 1)
 #quit()
 
 
 folder1 = './data/simulations/latent'
 folder2 = './Models/simulations/latent'
-#trainNewSimulations(folder1, folder2, 0, 1, regFactor=0.001)
+##############trainNewSimulations(folder1, folder2, 0, 1, regFactor=0.001)
 #quit()
 folder1 = './data/simulations/nonlinear'
 folder2 = './Models/simulations/nonlinear'
-#trainNewSimulations(folder1, folder2, 0, 1) #
+##############trainNewSimulations(folder1, folder2, 0, 1) #
 #quit()
 
 
 folder1 = './data/simulations/negativeInter'
 folder2 = './Models/simulations/negativeInter'
-#trainNewSimulations(folder1, folder2, 0, 1)#, regFactor=0.00001) #0.01 #0.002
+###########trainNewSimulations(folder1, folder2, 0, 1)
 #quit()
 
 folder1 = './data/simulations/bootstrap'
 folder2 = './Models/simulations/bootstrap'
-#trainNewSimulations(folder1, folder2, 0, 1)
+##############trainNewSimulations(folder1, folder2, 0, 1)
 #quit()
 
 
 folder1 = './data/simulations/effectSize'
 folder2 = './Models/simulations/effectSize'
-#trainNewSimulations(folder1, folder2, 0, 1)
+##############trainNewSimulations(folder1, folder2, 0, 1)
 #quit()
 
 folder1 = './data/simulations/passanger'
 folder2 = './Models/simulations/passanger'
-#trainNewSimulations(folder1, folder2, 0, 1)
+##############trainNewSimulations(folder1, folder2, 0, 1)
 #quit()
 
 
 folder1 = './data/simulations/realBoostrap'
 folder2 = './Models/simulations/realBoostrap'
-#trainNewSimulations(folder1, folder2, 1, 1, regFactor = 0.0002, Niter=100)#, regFactor = 0.001) 0.0005 #0.0002
+##############trainNewSimulations(folder1, folder2, 1, 1, regFactor = 0.0002, Niter=100)#, regFactor = 0.001) 0.0005 #0.0002
 #quit()
 
 
 
 folder1 = './data/simulations/lowPatient'
 folder2 = './Models/simulations/lowPatient'
-#trainNewSimulations(folder1, folder2, 4, 1) #300
-#trainNewSimulations(folder1, folder2, 0, 1, regFactor=0.003) #0, 1, 2
+##############trainNewSimulations(folder1, folder2, 4, 1) #300
+##############trainNewSimulations(folder1, folder2, 0, 1, regFactor=0.003) #0, 1, 2
 
 
 #print(tracemalloc.get_traced_memory())
@@ -4798,7 +5000,7 @@ def testNonlinearSimulations(folder1, folder2, T=4, N=20):
         modelFile = folder2 + '/T_' + str(T) + '_R_' + str(a) + '_model.pt'
         model = torch.load(modelFile)
 
-        #This prepares M clones, where the ith clone has only mutation i.
+
         X = torch.zeros((M**2, M))
         X[np.arange(M**2)  , np.arange(M**2)//M  ] = 1
         X[np.arange(M**2)  , np.arange(M**2)%M  ] = 1
@@ -4937,13 +5139,6 @@ def testNonlinearSimulations(folder1, folder2, T=4, N=20):
     quit()
 
 
-
-
-
-#testNonlinearSimulations(folder1, folder2, 0, 1)
-#quit()
-
-
 def plotNonlinearComponent():
 
     savedRelationships = loadnpz('./plotData/nonlinearComponenet.npz')
@@ -5012,11 +5207,6 @@ def plotNonlinearComponent():
 
         #plt.hist(nonlinearEffect - linearEffect, bins=100)
         #plt.show()
-
-
-#plotNonlinearComponent()
-#quit()
-
 
 
 def testLatentSimulation(folder1, folder2, T=4, N=20):
@@ -5267,18 +5457,6 @@ def testLatentSimulation(folder1, folder2, T=4, N=20):
         True
 
 
-
-
-
-
-#folder1 = './data/simulations/latent'
-#folder2 = './Models/simulations/latent'
-#testLatentSimulation(folder1, folder2)#
-#quit()
-
-
-
-
 def testOccurSimulations(folder1, folder2, T):
 
     import matplotlib.pyplot as plt
@@ -5456,13 +5634,6 @@ def testOccurSimulations(folder1, folder2, T):
     if T == 4:
         #np.save('./plotResult/cloMuCausal.npy', errorList)
         True
-
-
-#folder1 = './data/simulations/I-a'
-#folder2 = './Models/simulations/I-a'
-#testOccurSimulations(folder1, folder2, 4)
-#quit()
-
 
 
 def testRealSubtreePrediction():
@@ -5869,10 +6040,6 @@ def testRealSubtreePrediction():
         np.savez_compressed('./results/realData/predSubtree_breast.npz', probAll)
 
 
-
-#testRealSubtreePrediction()
-#quit()
-
 def plotRealSubtree():
 
     #dataName = 'AML'
@@ -5903,11 +6070,6 @@ def plotRealSubtree():
     plt.gcf().set_size_inches(8, 6)
     plt.savefig(saveName)
     plt.show()
-
-
-#plotRealSubtree()
-#quit()
-
 
 
 def testOccurFitness(T, N):
@@ -6030,9 +6192,128 @@ def testOccurFitness(T, N):
     #plt.show()
 
 
-#testOccurFitness(4, 20)
+
+def showRandomSelectionProb():
+
+    T = 3
+
+    N = 20
+
+    accuracyList = []
+
+    probAll = []
+    probAll2 = []
+
+    for a in range(0, N):
+        baselineFile = './Models/simulations/random/T_' + str(T) + '_R_' + str(a) + '_baseline.pt.npy'
+        ar = np.load(baselineFile)
+
+        skip1 = 2
+        if T == 3:
+            skip1 = 3
+
+        ar = ar[:(ar.shape[0] // 2)]
+        folder1 = 'random'
+        #trees = loadnpz('./data/simulations/' + folder1 + '/T_' + str(T) + '_R_' + str(a) + '_bulkTrees.npz')
+        #sampleInverse = loadnpz('./data/simulations/' + folder1 + '/T_' + str(T) + '_R_' + str(a) + '_bulkSample.npz')
+        #edges = loadnpz('./data/simulations/' + folder1 + '/T_' + str(T) + '_R_' + str(a) + '_trees.npz')
+
+
+
+        ar = np.log(ar)
+
+        min1 = np.min(ar)
+        max1 = np.max(ar)
+
+        ar = ar[:500*skip1]
+
+
+        ar = ar.reshape((500, skip1))
+
+        argmax = np.argmax(ar, axis=1)
+
+        accuracy = np.argwhere(argmax == 0).shape[0] / argmax.shape[0]
+        accuracyList.append(accuracy)
+
+        if True:#skip1 == 2:
+
+
+
+            #ar1 = ar[:, 0]
+            #ar2 = ar[:, 1]
+            #diff1 = ar1 - ar2
+
+            #accuracy = np.argwhere(diff1 > 0).shape[0] / diff1.shape[0]
+            #accuracyList.append(accuracy)
+
+            #prob = np.exp(diff1) / (np.exp(diff1) + 1.0)
+
+            prob = np.exp(ar[:, 0]) / np.sum(np.exp(ar), axis=1)
+
+            prob2 = np.exp(ar[:, 1]) / np.sum(np.exp(ar), axis=1)
+
+            #prob = np.exp(diff1)
+            #prob = diff1
+
+            probAll = probAll + list(prob)
+
+            probAll2 = probAll2 + list(prob2)
+
+
+    print (np.mean(np.array(accuracyList)))
+
+    probAll = np.array(probAll)
+    probAll2 = np.array(probAll2)
+
+    #print (np.argwhere(probAll > 0.5).shape[0] / probAll.shape[0])
+    #quit()
+
+
+
+    print (probAll.shape)
+
+    plt.hist(probAll, bins=10)
+    plt.hist(probAll2, bins=10, alpha=0.5)
+    #plt.xlabel('relative probability of correct tree')
+    plt.xlabel('relative probability')
+    plt.ylabel('count')
+    plt.legend(['correct tree', 'incorrect tree'])
+    plt.tight_layout()
+    #plt.xscale('log')
+    if T == 1:
+        plt.savefig('./images/new1/trueTreeProb.pdf')
+        np.savez_compressed('./plotData/trueTreeProb.npz', probAll)
+    if T == 2:
+        plt.savefig('./images/new1/randomTreeProb.pdf')
+        np.savez_compressed('./plotData/randomTreeProb.npz', probAll)
+    if T == 3:
+        plt.savefig('./images/new1/trueTreeProb2R.pdf')
+        #np.savez_compressed('./plotData/trueTreeProb2R.npz', probAll)
+
+    plt.show()
+
+
+#showRandomSelectionProb()
 #quit()
 
+
+def plotRandomSelectionProb():
+
+    probAll1 = loadnpz('./plotData/trueTreeProb.npz')
+    probAll2 = loadnpz('./plotData/randomTreeProb.npz')
+
+    plt.hist(probAll1, bins=10, alpha=0.5)
+    plt.hist(probAll2, bins=10, alpha=0.5)
+    plt.legend(['with causal relationships', 'with only random trees'])
+    plt.xlabel('relative probability of correct tree')
+    plt.ylabel('count')
+    plt.tight_layout()
+    plt.savefig('./images/new1/randomAndTrueProb.pdf')
+    plt.show()
+
+
+#plotRandomSelectionProb()
+#quit()
 
 
 
@@ -6057,7 +6338,7 @@ def compareOccurSimulations(folder1, folder2, T):
         predTrue = np.argwhere(pred_bool == 1).shape[0]
         realTrue = np.argwhere(trueVal == 1).shape[0]
 
-        print (predTrue, realTrue)
+        #print (predTrue, realTrue)
 
         precision1 = float(TruePos) / (float(predTrue) + 1e-5)
         recall1 = float(TruePos) / float(realTrue)
@@ -6156,7 +6437,7 @@ def compareOccurSimulations(folder1, folder2, T):
 
     N = 20
 
-
+    maxList = []
 
     categories = np.zeros((2, 2)).astype(int)
     #categories = np.array([[1600, 2], [0, 198]]).astype(int)
@@ -6219,6 +6500,19 @@ def compareOccurSimulations(folder1, folder2, T):
         cutOffs_MHN = []
         cutOffs = [0, 0.2, 0.3, 0.5, 0.6, 0.8, 1]
 
+
+    if folder1 == './data/simulations/random':
+        cutOffs_MHN = []
+
+        if T == 2:
+            cutOffs = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+
+        if T == 3:
+            #cutOffs = [0.01, 0.1, 0.2, 0.4, 0.6, 0.8]
+            cutOffs = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+        if T == 1:
+            cutOffs = [0.6, 0.7, 0.8, 0.85, 1.0, 1.2, 1.3, 1.4, 1.5]
+
     #if T == 11:
     #    cutOffs_MHN = [0, 1e-5, 0.0001, 0.001]
     #    cutOffs = [0.01, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0]
@@ -6230,14 +6524,14 @@ def compareOccurSimulations(folder1, folder2, T):
     #if T == 14:
     #    cutOffs = [1.2, 1.5, 1.7, 2.0, 2.1, 2.2]
 
-
+    valList = []
 
 
     baseline_acc = np.zeros((N, len(cutOffs_MHN), 2))
     our_acc = np.zeros((N, len(cutOffs), 2))
 
     #for a in range(20, N):
-    for a in range(0, 1):#20):#N):
+    for a in range(0, N):#20):#N):
 
         print (a)
         if folder1 == './data/simulations/negativeInter':
@@ -6333,6 +6627,8 @@ def compareOccurSimulations(folder1, folder2, T):
 
 
 
+        #print (prob_true)
+        #quit()
 
 
         #This loads in the model
@@ -6363,17 +6659,23 @@ def compareOccurSimulations(folder1, folder2, T):
         #output_np[output_np>0.5] = 1
         #output_np[output_np<-0.5] = -1
 
+        #print (np.max(output_np))
 
-        #plt.imshow(probabilityMatrix)
+        maxList.append(np.max(output_np))
+
+        #plt.imshow(output_np)
         #plt.show()
+        #quit()
 
-
-        #print (output_np)
+        print (output_np)
 
 
 
         mask1 = np.ones(output_np.shape)
         mask1[np.arange(M), np.arange(M)] = 0
+
+
+        valList = valList + list(output_np[mask1 == 1])
 
 
         #fig, axs = plt.subplots(2)
@@ -6407,7 +6709,6 @@ def compareOccurSimulations(folder1, folder2, T):
                 precision1, recall1 = simple_calculateErrors(cutOff, prob_true, output_np, mask1)
             else:
                 precision1, recall1 = calculateErrors(cutOff, prob_true, output_np, mask1)
-                print ('hi')
 
             print (precision1, recall1)
 
@@ -6422,6 +6723,12 @@ def compareOccurSimulations(folder1, folder2, T):
     #np.savetxt('./sending/ours_forMEK_rec.csv', our_acc[:, :, 1], delimiter=',')
     #np.savetxt('./sending/MHN_forMEK_prec.csv', baseline_acc[:, :, 0], delimiter=',')
     #np.savetxt('./sending/MHN_forMEK_rec.csv', baseline_acc[:, :, 1], delimiter=',')
+
+    valList = np.array(valList)
+
+    #print ('0.8', valList[valList > 0.8].shape)
+    print ('0.4', valList[valList > 0.4].shape)
+    print ('0.3', valList[valList > 0.3].shape)
 
     #doSave = False
     saveName = ''
@@ -6464,19 +6771,27 @@ def compareOccurSimulations(folder1, folder2, T):
     if folder1 == './data/simulations/I-a':
         np.savez_compressed('./plotData/I-a.npz', our_acc)
 
+    if folder1 == './data/simulations/random':
+        if T == 1:
+            np.savez_compressed('./plotData/random_1.npz', our_acc)
+        if T == 3:
+            np.savez_compressed('./plotData/random_3.npz', our_acc)
+
     if folder1 == './data/simulations/latent':
         np.savez_compressed('./plotData/latentCause.npz', our_acc)
         np.savez_compressed('./plotData/latentCause_baseline.npz', baseline_acc)
 
+    #print (our_acc.shape)
 
-    plt.plot(np.mean(our_acc[0:1, :, 1], axis=0), np.mean(our_acc[0:1, :, 0], axis=0))
+    plt.plot(np.mean(our_acc[0:N, :, 1], axis=0), np.mean(our_acc[0:N, :, 0], axis=0))
 
     if folder1 in ['./data/simulations/negativeInter', './data/simulations/latent', './data/simulations/passanger']:
 
 
-        plt.scatter(np.mean(baseline_acc[0:1, :, 1], axis=0), np.mean(baseline_acc[0:1, :, 0], axis=0))
-        plt.plot(np.mean(baseline_acc[0:1, :, 1], axis=0), np.mean(baseline_acc[0:1, :, 0], axis=0))
-        plt.legend(['CloMu', 'TreeMHN'])
+        #plt.scatter(np.mean(baseline_acc[0:2, :, 1], axis=0), np.mean(baseline_acc[0:2, :, 0], axis=0))
+        #plt.plot(np.mean(baseline_acc[0:2, :, 1], axis=0), np.mean(baseline_acc[0:2, :, 0], axis=0))
+        #plt.legend(['CloMu', 'TreeMHN'])
+        True
 
     #plt.scatter(np.mean(our_acc[:, :, 1], axis=0), np.mean(our_acc[:, :, 0], axis=0))
     plt.xlabel("recall")
@@ -6496,8 +6811,8 @@ def compareOccurSimulations(folder1, folder2, T):
 #folder2 = './Models/simulations/effectSize'
 #folder1 = './data/simulations/lowPatient'
 #folder2 = './Models/simulations/lowPatient'
-folder1 = './data/simulations/negativeInter'
-folder2 = './Models/simulations/negativeInter'
+#folder1 = './data/simulations/negativeInter'
+#folder2 = './Models/simulations/negativeInter'
 #folder1 = './data/simulations/passanger'
 #folder2 = './Models/simulations/passanger'
 #folder1 = './data/simulations/bootstrap'
@@ -6510,11 +6825,37 @@ folder2 = './Models/simulations/negativeInter'
 #folder1 = './data/simulations/fewSamples'
 #folder2 = './Models/simulations/fewSamples'
 
-#compareOccurSimulations(folder1, folder2, 0)
+folder1 = './data/simulations/random'
+folder2 = './Models/simulations/random'
+
+#compareOccurSimulations(folder1, folder2, 2)
 #quit()
 
 
 def comparePlot():
+
+
+    if True:
+        our_random = loadnpz('./plotData/random_1.npz')
+        our_random2 = loadnpz('./plotData/random_3.npz')
+
+        print (np.mean(our_random2[:, :, 1], axis=0), np.mean(our_random2[:, :, 0], axis=0))
+        quit()
+
+        print (our_random.shape)
+        plt.plot(np.mean(our_random[:, :, 1], axis=0), np.mean(our_random[:, :, 0], axis=0), alpha=0.5, lw=3)
+        plt.plot(np.mean(our_random2[:, :, 1], axis=0), np.mean(our_random2[:, :, 0], axis=0), alpha=0.5, lw=3)
+        plt.scatter(np.mean(our_random[:, :, 1], axis=0), np.mean(our_random[:, :, 0], axis=0))
+        plt.scatter(np.mean(our_random2[:, :, 1], axis=0), np.mean(our_random2[:, :, 0], axis=0))
+        #plt.legend(['500 patients', '300 patients', '100 patients', '50 patients'])
+        plt.xlabel("causality recall")
+        plt.ylabel("causality precision")
+        plt.legend(['one random tree per patient', 'two random trees per patient'])
+        plt.gcf().set_size_inches(8, 6)
+        plt.savefig('./images/new1/causalityRandom_both.pdf')
+        plt.show()
+        quit()
+
 
 
     if False:
@@ -6742,11 +7083,28 @@ def boostrapPlot(folder1, folder2):
 
 
 
-    def simMakePlot(image1, saveName, vmin, vmax):
+    def simMakePlot(image1, saveName, vmin, vmax, doV=True):
 
 
         fig, ax = plt.subplots()
-        im = ax.imshow(image1, vmin=vmin, vmax=vmax, cmap='bwr')
+
+        if not doV:
+            med1 = np.median(image1)
+            for a in range(image1.shape[0]):
+                image1[a, a] = med1
+
+            vmin=np.min(image1)
+            vmax=np.max(image1)
+            vavg = (vmin + vmax) / 2
+
+            for a in range(image1.shape[0]):
+                image1[a, a] = vavg
+
+        image2 = np.copy(image1)
+        image2[image2<vmin] = vmin
+        image2[image2>vmax] = vmax
+
+        im = ax.imshow(image2, vmin=vmin, vmax=vmax, cmap='bwr')
 
         arange1 = np.arange(10)
         arange2 = arange1.astype(str)
@@ -6787,6 +7145,8 @@ def boostrapPlot(folder1, folder2):
     #the simulated data set of causal relationships
 
 
+    doRank = False
+
     errorList = []
 
 
@@ -6804,12 +7164,12 @@ def boostrapPlot(folder1, folder2):
 
     sns.set_style('white')
 
-    N = 20
+    N = 100
 
     output_all = np.zeros((N, M, M))
 
     #for a in range(20, N):
-    for a in range(0, 20):#N):
+    for a in range(0, N):#N):
 
         print (a)
 
@@ -6846,6 +7206,26 @@ def boostrapPlot(folder1, folder2):
             output_np[:, b] = output_np[:, b] - output_normal[0, b]
 
 
+
+        if doRank:
+
+            #plt.imshow(output_np)
+            ##plt.show()
+
+            mask1 = np.zeros((M, M))
+            mask1[np.arange(M), np.arange(M)] = 1
+            args1 = np.argwhere(mask1 == 0)
+            output_np2 = output_np[args1[:, 0], args1[:, 1]]
+            output_np2 = np.argsort(np.argsort(output_np2)) + 1 #two argsorts gives ranking
+            output_np[args1[:, 0], args1[:, 1]] = np.copy(output_np2)
+
+
+
+            #plt.imshow(output_np)
+            #plt.show()
+            #quit()
+
+
         output_all[a] = np.copy(output_np)
 
     #plt.imshow(np.mean(output_all, axis=0))
@@ -6855,8 +7235,11 @@ def boostrapPlot(folder1, folder2):
     #rangeSize = 0.8
     for a in range(M):
         output_all[:, a, a] = cutOff
+
     #for a in range(5):
     #    probabilityMatrix[a, a] = (np.min(probabilityMatrix)+np.max(probabilityMatrix)) / 2
+
+
 
 
     output_mean = np.mean(output_all, axis=0)
@@ -6865,8 +7248,23 @@ def boostrapPlot(folder1, folder2):
     #output_sigma = np.mean(output_sigma ** 2, axis=0) ** 0.5
     #output_sigma = output_sigma * (output_mean.shape[0] / (output_mean.shape[0]-1))
 
-    output_upper = np.max(output_all, axis=0)
-    output_lower = np.min(output_all, axis=0)
+    if doRank:
+        #output_upper = np.max(output_all, axis=0)
+        #output_lower = np.min(output_all, axis=0)
+        output_upper = np.sort(output_all, axis=0)[-6]
+        output_lower = np.sort(output_all, axis=0)[5]
+    else:
+        #output_upper = np.max(output_all, axis=0)
+        #output_lower = np.min(output_all, axis=0)
+        output_upper = np.sort(output_all, axis=0)[-6]
+        output_lower = np.sort(output_all, axis=0)[5]
+
+    #output_upper = np.sort(output_all, axis=0)[-6]
+    #output_lower = np.sort(output_all, axis=0)[5]
+
+    #output_upper = np.sort(output_all, axis=0)[-3]
+    #output_lower = np.sort(output_all, axis=0)[2]
+
 
     #output_sigma = output_sigma * 1
 
@@ -6877,16 +7275,31 @@ def boostrapPlot(folder1, folder2):
 
     probabilityMatrix_plot = np.zeros((M, M))
     probabilityMatrix_plot[:probabilityMatrix.shape[0], :probabilityMatrix.shape[1]] = np.copy(probabilityMatrix)
-    probabilityMatrix_plot[np.arange(M), np.arange(M)] = 0
+    probabilityMatrix_plot[np.arange(M), np.arange(M)] = cutOff #cutOff instead of 0 may 1 2023
 
 
     vmin = cutOff - rangeSize
     vmax = cutOff + rangeSize
 
-    simMakePlot(probabilityMatrix_plot, './images/multi/simCauseTrue.pdf', vmin, vmax)
-    simMakePlot(output_mean, './images/multi/simCauseMean.pdf', vmin, vmax)
-    simMakePlot(output_lower, './images/multi/simCauseLower.pdf', vmin, vmax)
-    simMakePlot(output_upper, './images/multi/simCauseUpper.pdf', vmin, vmax)
+    if doRank:
+
+        vmin = 80 - 4
+        vmax = 81 + 4
+
+        probabilityMatrix_plot[probabilityMatrix_plot>2] = 81
+        probabilityMatrix_plot[probabilityMatrix_plot<2] = 80
+
+        simMakePlot(probabilityMatrix_plot, './images/new1/simCauseTrue_rank.pdf', vmin, vmax, doV=True)
+        simMakePlot(output_mean, './images/new1/simCauseMean_rank.pdf', vmin, vmax, doV=True)
+        simMakePlot(output_lower, './images/new1/simCauseLower_rank.pdf', vmin, vmax, doV=True)
+        simMakePlot(output_upper, './images/new1/simCauseUpper_rank.pdf', vmin, vmax, doV=True)
+
+    else:
+
+        simMakePlot(probabilityMatrix_plot, './images/new1/simCauseTrue.pdf', vmin, vmax)
+        simMakePlot(output_mean, './images/new1/simCauseMean.pdf', vmin, vmax)
+        simMakePlot(output_lower, './images/new1/simCauseLower.pdf', vmin, vmax)
+        simMakePlot(output_upper, './images/new1/simCauseUpper.pdf', vmin, vmax)
 
     quit()
 
@@ -7063,17 +7476,17 @@ def realBootstrap():
     M = int(np.max(newTrees+1)) - 2
 
 
+    #doRanking = True
+    doRanking = False
 
-
-
-    N = 20
+    N = 100
 
     output_all = np.zeros((N, 5, 5))
     fitness_all = np.zeros((N, M))
 
 
     #for a in range(6, 7):
-    for a in range(-1, 20):
+    for a in range(-1, 100):
 
 
         if a == -1:
@@ -7147,12 +7560,46 @@ def realBootstrap():
         #output_all[a] = np.copy(output_np)
         #'''
 
+
+        if False: #This would be ranking all mutations
+            M1 = output_np.shape[0]
+            mask1 = np.zeros((M1, M1))
+            mask1[np.arange(M1), np.arange(M1)] = 1
+            args1 = np.argwhere(mask1 == 0)
+            output_np2 = output_np[args1[:, 0], args1[:, 1]]
+            output_np2 = np.argsort(np.argsort(output_np2)) #two argsorts gives ranking
+            output_np[args1[:, 0], args1[:, 1]] = np.copy(output_np2)
+
+
         output_np = output_np[order1][:, order1]
         output_np[np.arange(output_np.shape[0]), np.arange(output_np.shape[0])] = 0
 
         #plt.imshow(output_np, cmap='bwr')
         #plt.clim(-1, 1)
         #plt.show()
+
+
+
+        if doRanking:
+
+            #plt.imshow(output_np)
+            ##plt.show()
+
+            M1 = output_np.shape[0]
+            mask1 = np.zeros((M1, M1))
+            mask1[np.arange(M1), np.arange(M1)] = 1
+            args1 = np.argwhere(mask1 == 0)
+            output_np2 = output_np[args1[:, 0], args1[:, 1]]
+            output_np2 = np.argsort(np.argsort(output_np2)) + 1 #two argsorts gives ranking
+            output_np[args1[:, 0], args1[:, 1]] = np.copy(output_np2)
+
+
+
+            #plt.imshow(output_np)
+            #plt.show()
+            #quit()
+
+
 
         if a != -1:
             fitness_all[a] = np.copy(fitness)
@@ -7178,8 +7625,15 @@ def realBootstrap():
         fitness_mean_reshape = fitness_mean.reshape((1, M))
         #fitness_sigma = (fitness_all_log - fitness_mean_reshape)
         #fitness_sigma = np.mean(fitness_sigma ** 2, axis=0) ** 0.5
-        fitness_upp = np.sort(fitness_all, axis=0)[-1]#[-2]
-        fitness_low = np.sort(fitness_all, axis=0)[0]#[1]
+
+        #fitness_upp = np.sort(fitness_all, axis=0)[-1]#[-2]
+        #fitness_low = np.sort(fitness_all, axis=0)[0]#[1]
+
+        #fitness_upp = np.sort(fitness_all, axis=0)[-3]#[-2]
+        #fitness_low = np.sort(fitness_all, axis=0)[2]#[1]
+
+        fitness_upp = np.sort(fitness_all, axis=0)[-6]#[-2]
+        fitness_low = np.sort(fitness_all, axis=0)[5]#[1]
 
         fitMax = max(np.max(fitness_upp), np.max(fitness_original)) * 1.02
         fitMin = min(np.min(fitness_mean), np.min(fitness_original)) * 0.98
@@ -7217,6 +7671,8 @@ def realBootstrap():
             if name == 'ESR1':
                 pos2 = pos2 * (1-0.03)
 
+            name = '\emph{' + name + '}'
+
             plt.annotate(name, (pos1 , pos2 ))
             #plt.annotate(name, (order1[i]  , np.exp(fitness_mean[order1[i]]) + (fitMax / 100)    ))
         plt.ylim(fitMin, fitMax)
@@ -7225,7 +7681,7 @@ def realBootstrap():
         plt.grid(True,which="both",c='lightgray')
         plt.tight_layout()
         plt.gcf().set_size_inches(8, 6)
-        plt.savefig('./images/multi/fitBoot.pdf')
+        plt.savefig('./images/new1/fitBoot.pdf')
         plt.show()
 
         quit()
@@ -7266,7 +7722,7 @@ def realBootstrap():
     #    probabilityMatrix[a, a] = (np.min(probabilityMatrix)+np.max(probabilityMatrix)) / 2
 
 
-    output_mean = np.mean(output_all, axis=0)
+    output_mean = np.median(output_all, axis=0)
     output_mean_reshape = output_mean.reshape((1, M, M))
     #output_sigma = (output_all - output_mean_reshape)
     #output_sigma = np.mean(output_sigma ** 2, axis=0) ** 0.5
@@ -7291,9 +7747,9 @@ def realBootstrap():
     #quit()
 
 
-    output_all_reshape = output_all.reshape((20 * M * M,))
-    output_nums = np.arange(M*M).reshape((1, M, M))[np.zeros(20, dtype=int)]
-    output_nums = output_nums.reshape((20*M*M,))
+    output_all_reshape = output_all.reshape((N * M * M,))
+    output_nums = np.arange(M*M).reshape((1, M, M))[np.zeros(N, dtype=int)]
+    output_nums = output_nums.reshape((N*M*M,))
 
     mask1 = (output_nums % M) - (output_nums // M)
     mask2 = (np.arange(M*M) % M) - (np.arange(M*M) // M)
@@ -7312,7 +7768,8 @@ def realBootstrap():
     for a in range(len(toShow)):
         for b in range(len(toShow)):
             #if a != b:
-            label1 = toShow[a] + ' to ' + toShow[b]
+            #label1 = toShow[a] + ' to ' + toShow[b]
+            label1 = '\emph{' + toShow[a] + '} to \emph{' + toShow[b] + '}'
             labels.append(label1)
     labels = np.array(labels)
 
@@ -7323,11 +7780,17 @@ def realBootstrap():
                 y=output_all_reshape, showfliers=False)
 
     plt.scatter(np.arange(20), output_np_original_mod , color='black', marker='x', s=80)
-    plt.ylabel('relative causality')
+    if doRanking:
+        plt.ylabel('relative causality rank')
+    else:
+        plt.ylabel('relative causality')
     plt.xticks(rotation=90)
     plt.tight_layout()
     plt.gcf().set_size_inches(10, 7)
-    plt.savefig('./images/breastBootBox.pdf')
+    if doRanking:
+        plt.savefig('./images/new1/breastBootBox_rank.pdf')
+    else:
+        plt.savefig('./images/new1/breastBootBox.pdf')
     plt.show()
     quit()
 
@@ -7382,8 +7845,6 @@ def realBootstrap():
     #plt.vmax(1.6)
     #fig.set_clim(vmin=0,vmax=1.6)
     plt.show()
-
-
 
 
 
@@ -7820,14 +8281,6 @@ def singleTreePrediction(revolver=False):
             np.save('./plotResult/revolverSelect.npy', accuracyList)
         else:
             np.save('./plotResult/recapSelect.npy', accuracyList)
-
-
-
-#singleTreePrediction(revolver=False)
-#quit()
-
-
-
 
 def savePathwaySimulationPredictions():
 
@@ -9808,17 +10261,12 @@ def plotCausalSimulation():
     plt.xlabel('')
     plt.show()
 
-
-#plotCausalSimulation()
-#quit()
-
-
 def plotSelectionSimulation():
 
 
-    x1 = np.load('./plotResult/cloMuSelect.npy')
-    x2 = np.load('./plotResult/recapSelect.npy')
-    x3 = np.load('./plotResult/revolverSelect.npy')
+    x1 = np.load('./plotData/cloMuSelect.npy')
+    x2 = np.load('./plotData/recapSelect.npy')
+    x3 = np.load('./plotData/revolverSelect.npy')
 
     #x1 = np.load('./plotResult/cloMuSelectPath.npy')
     #x2 = np.load('./plotResult/recapSelect.npy')
@@ -9853,21 +10301,25 @@ def plotSelectionSimulation():
     #methods = [0, 1]
     methods = ['CloMu', 'RECAP', 'REVOLVER']
 
+    my_colors = {'CloMu': (0.12156862745098039, 0.4666666666666667, 0.7058823529411765), 'RECAP': (0.17254901960784313, 0.6274509803921569, 0.17254901960784313), 'REVOLVER': (0.8392156862745098, 0.15294117647058825, 0.1568627450980392)}
+    #print (sns.color_palette("tab10"))
+    #quit()
+
     sns.stripplot(data=df, x="Number of Pathways",
               y="Tree Selection Accuracy", hue="Method",
               hue_order=methods,
-              alpha=.4, dodge=True, linewidth=1, jitter=.1,)
+              alpha=.4, dodge=True, linewidth=1, jitter=.1, palette=my_colors)
     sns.boxplot(data=df, x="Number of Pathways",
                 y="Tree Selection Accuracy", hue="Method",
-                hue_order=methods, showfliers=False)
+                hue_order=methods, showfliers=False, palette=my_colors)
     handles, labels = plt.gca().get_legend_handles_labels()
-    plt.gca().legend(handles[0:len(methods)], labels[0:len(methods)])
+    #plt.gca().legend(handles[0:len(methods)], labels[0:len(methods)])
+    plt.gca().legend([], frameon=False)
+    #plt.gca().legend.remove()
     plt.xlabel('')
+    plt.gcf().set_size_inches(4, 3)
+    plt.tight_layout()
     plt.show()
-
-#plotSelectionSimulation()
-#quit()
-
 
 def trainSimulationModels(name):
     import os
@@ -10687,15 +11139,18 @@ def newAnalyzeModel(modelName):
     #plt.gcf().tight_layout()
 
     #modelName = 'breast'
+    modelName = 'AML'
 
-    modelName = 'temp'
+    #modelName = 'temp'
+
 
     if modelName == 'AML':
         model = torch.load('./Models/realData/savedModel_AML.pt')
         #model = torch.load('./Models/savedModel_manual_oct12_8pm.pt')
         #model = torch.load('./Models/savedModel_manual_allTrain2.pt')
         #model = torch.load('./Models/savedModel_manual_PartialTrain.pt')
-        mutationName = np.load('./data/realData/AMLmutationNames.npy')[:-2]
+        #mutationName = np.load('./data/realData/AMLmutationNames.npy')[:-2]
+        mutationName = np.load('./data/realData/categoryNames.npy')[:-2]
 
         #print (mutationName)
         #quit()
@@ -10717,6 +11172,7 @@ def newAnalyzeModel(modelName):
         #M = 365
         #latentMin = 0.01
         latentMin = 0.1
+        #latentMin = 0.059
 
 
     elif modelName == 'temp':
@@ -10789,24 +11245,30 @@ def newAnalyzeModel(modelName):
 
 
     if False:
+
+        #sns.set_context("notebook", font_scale=1.5)
+
         #plt.plot(xNP[argsInteresting][np.argsort(xNP[argsInteresting, 0])])
 
         #This plots the latent parameters of the mutations
         plt.plot(xNP)
         if modelName == 'AML':
-            plt.ylim(-1.6)
+            #plt.ylim(-1.6)
+            plt.ylim(-1.8)
+
+        #labelsize=20
 
         #plt.title("mutation properties")
-        plt.xlabel("mutation")
-        plt.ylabel("latent variable value")
-        plt.legend(['comp.~1', 'comp.~2', 'comp.~3', 'comp.~4', 'comp.~5'], ncol=2)
+        plt.xlabel("mutation", fontsize=19)
+        plt.ylabel("latent variable value", fontsize=19)
+        plt.legend(['comp.~1', 'comp.~2', 'comp.~3', 'comp.~4', 'comp.~5'], ncol=2, fontsize=18, loc='lower right')
 
 
         #This finds the mutations with substantial enough properties
         #that they should be annotated, and annotates them with the mutation name.
         #argsHigh = np.argwhere(latentSize > 0.15)[:, 0]
 
-        argsHigh = np.argwhere(latentSize > 0.02)[:, 0]
+        argsHigh = np.argwhere(latentSize > latentMin)[:, 0]
 
 
         #print (argsHigh.shape)
@@ -10820,14 +11282,19 @@ def newAnalyzeModel(modelName):
             sign1 = np.sign(xNP[i][np.argmax(np.abs(xNP[i]))] )
             max1 = (max0  * sign1) - (delt1 * 3)
 
+            name_italic = '\emph{' + name + '}'
+
+            if name == 'NRAS':
+                max1 = max1 + (delt1 * 4)
+
             ############plt.annotate(name, (i -  (M / 20), np.max(xNP[i]) + (np.max(xNP) / 100)    ))
-            plt.annotate(name, (i -  (M / 40), max1    ))
+            plt.annotate(name_italic, (i -  (M / 40), max1    ))
 
 
 
 
         plt.tight_layout()
-        #plt.savefig('./images/LatentPlot_' + modelName + '.pdf')
+        plt.savefig('./images/resized/LatentPlot_' + modelName + '.pdf')
         plt.show()
 
         quit()
@@ -10900,8 +11367,8 @@ def newAnalyzeModel(modelName):
 
     #This calculates the mutations which have a high enough fitness that they should be annotated
     #with the mutation name in the plot.
-    argsHigh = np.argwhere(prob2_sum > np.median(prob2_sum) * 1.5)[:, 0]
-    #argsHigh = np.argwhere(prob2_sum > np.median(prob2_sum) * 1.2)[:, 0]
+    #argsHigh = np.argwhere(prob2_sum > np.median(prob2_sum) * 1.5)[:, 0]
+    argsHigh = np.argwhere(prob2_sum > np.median(prob2_sum) * 1.2)[:, 0]
 
 
 
@@ -10914,17 +11381,19 @@ def newAnalyzeModel(modelName):
     #print (np.sort(prob2_sum))
     #quit()
 
-    argsHigh = np.argwhere(latentSize > 0.02)[:, 0]
+    #argsHigh = np.argwhere(latentSize > latentMin)[:, 0]
 
     if False:
         #print (argsHigh.shape)
         #quit()
 
+        sns.set_context("notebook", font_scale=1.2)
+
         #This plots the relative fitness of all of the mutations in the data set.
         plt.plot(prob2_sum, c='r')#, yscale="log")
         plt.scatter( argsHigh, prob2_sum[argsHigh], c='r' )
-        plt.ylabel('fitness')
-        plt.xlabel('mutation')
+        plt.ylabel('fitness', fontsize=19)
+        plt.xlabel('mutation', fontsize=19)
         if modelName == 'AML':
             plt.yscale('log')
 
@@ -10933,11 +11402,14 @@ def newAnalyzeModel(modelName):
         # plt.gca().set_yscale('log')
         for i in argsHigh:
             name = mutationName[i]
+            name_italic = '\emph{' + name + '}'
             #################plt.annotate(name, (i -  (M / 20), prob2_sum[i] + (np.max(prob2_sum) / 100)    ))
-            plt.annotate(name, (i , prob2_sum[i] + (np.max(prob2_sum) / 100)    ))
+            plt.annotate(name_italic, (i , prob2_sum[i] + (np.max(prob2_sum) / 100)    ))
+
+
+        #plt.yscale('log')
         plt.tight_layout()
-        #plt.savefig('./images/fitnessPlot_' + modelName + '.pdf')
-        plt.yscale('log')
+        plt.savefig('./images/resized/fitnessPlot_' + modelName + '.pdf')
         plt.show()
 
         quit()
@@ -11057,9 +11529,18 @@ def newAnalyzeModel(modelName):
 
     if True:
 
+        mutationName_italic = []
+        for name in mutationName:
+            name_italic = '\emph{' + name + '}'
+            mutationName_italic.append(name_italic)
+        mutationName_italic = np.array(mutationName_italic)
+
+
         vSize = np.max(np.abs(prob_np_adj_inter))
         vmin = vSize * -1
         vmax = vSize
+
+        sns.set_context("notebook", font_scale=1.2)
 
         #This is a plot of the causal relationship between all of the interesting mutations,
         #with the names of the mutations labeled.
@@ -11074,19 +11555,20 @@ def newAnalyzeModel(modelName):
         # ax.xaxis.set_major_locator(MultipleLocator(1))
         # ax.yaxis.set_major_locator(MultipleLocator(1))
         plt.grid(False)
-        plt.xlabel("target mutation $t$")
-        plt.ylabel('source mutation $s$')
+        plt.xlabel("target mutation $t$", fontsize=19)
+        plt.ylabel('source mutation $s$', fontsize=19)
         plt.colorbar()
         ax.set_yticks(np.arange(argsInteresting.shape[0]))
-        ax.set_yticklabels(mutationName[argsInteresting][reorder])
+        ax.set_yticklabels(mutationName_italic[argsInteresting][reorder])
 
         ax.set_xticks(np.arange(argsInteresting.shape[0]))
-        ax.set_xticklabels(mutationName[argsInteresting][reorder])
-
+        ax.set_xticklabels(mutationName_italic[argsInteresting][reorder])
+        #
 
         plt.xticks(rotation = 90)
         plt.tight_layout()
         #plt.savefig('./images/occurancePlot_' + modelName + '.pdf')
+        plt.savefig('./images/resized/occurancePlot_' + modelName + '.pdf')
         plt.show()
 
 
@@ -11096,6 +11578,176 @@ def newAnalyzeModel(modelName):
 
 ################trainRealData('AML')#, trainPer=1.0) #around 150 rounds to converge for breast cancer
 ################quit()
+
+
+
+
+def analyzeNonlinear(modelName):
+
+    #This function does an analysis of the model trained on a data set,
+    #creating plots of fitness, causal relationships, and latent representations.
+
+    print ("analyzeModel")
+
+    import matplotlib.pyplot as plt
+
+
+
+    import os, sys, glob
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    from matplotlib.ticker import (AutoMinorLocator, MultipleLocator)
+
+    sns.set_style('whitegrid')
+    mpl.rc('text', usetex=True)
+    sns.set_context("notebook", font_scale=1.4)
+
+    #plt.gcf().tight_layout()
+
+    #modelName = 'breast'
+    modelName = 'AML'
+
+    #modelName = 'temp'
+
+
+    if modelName == 'AML':
+        model = torch.load('./Models/realData/savedModel_AML.pt')
+
+        mutationName = np.load('./data/realData/categoryNames.npy')[:-2]
+        #mutationName = np.load('./data/realData/AMLmutationNames.npy')[:-2]
+
+        #print (mutationName)
+        #quit()
+        M = 22
+        #latentMin = 0.1
+
+
+        #latentMin = 0.05
+        latentMin = 0.02
+        #latentMin = 0.005
+
+        #print (mutationName.shape)
+        #quit()
+    elif modelName == 'breast':
+        model = torch.load('./Models/realData/savedModel_breast.pt')
+        #mutationName = np.load('./data/mutationNamesBreastLarge.npy')[:-2]
+        mutationName = np.load('./data/realData/breastCancermutationNames.npy')[:-2]
+        M = 406
+        #M = 365
+        #latentMin = 0.01
+        latentMin = 0.1
+
+
+
+
+
+
+    X2 = torch.zeros((M**2, M))
+    X2[np.arange(M**2)  , np.arange(M**2)//M  ] = 1
+    X2[np.arange(M**2)  , np.arange(M**2)%M  ] = 1
+
+    #This gives the predicted probability of new mutations on the clones.
+    pred2, _ = model(X2)
+    pred2 = pred2.reshape((M, M, M))
+    pred2 = pred2.data.numpy()
+
+    #1, 2, 3, 12, 13
+
+
+    #This creates a matrix representing all of the clones with only one mutation.
+    X = torch.zeros((M, M))
+    X[np.arange(M), np.arange(M)] = 1
+
+    #This gives the predicted probability weights and the predicted latent variables.
+    pred, xNP = model(X)
+    pred = pred.data.numpy()
+
+    X_normal = torch.zeros((1, M))
+    pred_normal, _ = model(X_normal)
+    pred_normal = pred_normal.data.numpy()
+
+
+    pred2 = pred2 - pred_normal
+    pred = pred - pred_normal
+
+    nonlinearPart = np.copy(pred2)
+
+    #print (nonlinearPart.shape)
+    #quit()
+
+
+    for a in range(M):
+
+        nonlinearPart[a]
+        pred[a+np.zeros(1, dtype=int)]
+
+
+        nonlinearPart[a] = nonlinearPart[a] - pred[a+np.zeros(1, dtype=int)]
+        nonlinearPart[:, a] = nonlinearPart[:, a] - pred[a+np.zeros(1, dtype=int)]
+
+
+    #'''
+    print (mutationName)
+
+    ar1 = nonlinearPart[0, 1]
+
+    #print (mutationName[ np.abs(ar1 - np.median(ar1)) > 0.1 ])
+    #print (mutationName[ np.abs(ar2 - np.median(ar2)) > 0.1 ])
+    #'''
+    #plt.plot(nonlinearPart[12, 13])
+    #plt.plot(nonlinearPart[0, 1])
+    #plt.show()
+    #quit()
+
+    #print (mutationName[12], mutationName[13])
+
+
+    #quit()
+
+
+    meanEffect = np.mean(nonlinearPart, axis=(0, 1))
+
+    argsInteresting = np.argwhere(np.abs(meanEffect - np.median(meanEffect)) > 0.1 )[:, 0]
+
+    for a0 in range(argsInteresting.shape[0]):
+        a = argsInteresting[a0]
+        name = mutationName[a]
+        pos1 = a
+        pos2 = meanEffect[a]
+
+        plt.annotate(name, (pos1, pos2))
+
+
+    plt.plot(meanEffect)
+    plt.xlabel('mutation')
+    plt.ylabel('nonlinear effect')
+    plt.tight_layout()
+    if modelName == 'breast':
+        plt.savefig('./images/new1/nonlinear_breast.pdf')
+    else:
+        plt.savefig('./images/new1/nonlinear_AML.pdf')
+    plt.show()
+    quit()
+
+
+    #sum1 = np.mean(nonlinearPart, axis=2)
+
+    #sum1[np.arange(M), np.arange(M)] = np.median(sum1)
+
+
+    plt.imshow(sum1)
+    plt.show()
+
+
+
+
+
+#analyzeNonlinear('breast')
+#quit()
+
+
 
 
 def analyzePathway():
@@ -11811,225 +12463,56 @@ def checkBreastType():
     #embedding = TSNE(n_components=2, learning_rate='auto',
     #                init='random', perplexity=3).fit_transform(latentRepOrdered)
 
-    #from sklearn.decomposition import PCA
-    #pca = PCA(n_components=2)
-    #embedding = pca.fit_transform(latentRepOrdered)
-
-    #import umap
-    import umap.umap_ as umap
-    #from umap import UMAP
-    from umap.umap_ import UMAP
-    reducer = UMAP()
-    embedding = reducer.fit_transform(latentRepOrdered)
-    #embedding.shape
-
-    #np.savez_compressed('./plotData/breastReceptorUMAP2.npz', embedding)
-
-    #embedding = loadnpz('./plotData/breastReceptorUMAP2.npz')
+    from sklearn.decomposition import PCA
+    pca = PCA(n_components=3)
+    embedding = pca.fit_transform(latentRepOrdered)
 
 
-    import scipy
-    from scipy import stats
-    print (scipy.stats.pearsonr(embedding[:, 0], types))
-    print (scipy.stats.pearsonr(embedding[:, 1], types))
+
+
+    #print (np.std(embedding[:, 0]))
+    #print (np.std(embedding[:, 1]))
+    #print (np.std(embedding[:, 2]))
+    #quit()
+
+    #embedding = latentRepOrdered
 
 
     plt.scatter(embedding[types < 2, 0], embedding[types < 2, 1], s=20, alpha=0.5)
     plt.scatter(embedding[types >= 2, 0], embedding[types >= 2, 1], s=20, alpha=0.5)
-    plt.xlabel("UMAP component 1")
-    plt.ylabel("UMAP component 2")
+    plt.xlabel("PCA component 1")
+    plt.ylabel("PCA component 2")
+    plt.tight_layout()
     plt.gcf().set_size_inches(8, 6)
     plt.legend(["HR+", "HR$-$"])
-    plt.savefig('./images/breastEmbedding3.pdf')
+    plt.savefig('./images/new1/breastEmbedding_PCA_0_1.pdf')
     plt.show()
 
-    #plt.scatter(embedding[types%2 == 0, 0], embedding[types%2 == 0, 1], s=1)
-    #plt.scatter(embedding[types%2 == 1, 0], embedding[types%2 == 1, 1], s=1)
-    #plt.show()
-    quit()
-
-
-
-    #print (np.unique(sampleInverse).shape)
-
-    #print (treeLength.shape)
-    #quit()
-
-    print (uniqueMutation[miniTrees[0, :treeLength1[0]]])
-    #quit()
-
-
-
-
-
-    reverseLatent[:, :2] = np.copy(reverseLatent2[:, :2])
-
-
-    #reverseLatent[np.abs(reverseLatent) < 0.01] = 0
-
-
-
-
-    #quit()
-
-    #print (reverseLatent)
-    #quit()
-
-    #plt.imshow(X)
-    #plt.show()
-
-    print (typeNames)
-
-    #patientLatent = np.matmul(X, reverseLatent)
-
-    patientLatent = np.zeros((X.shape[0], reverseLatent.shape[1]))
-    for a in range(X.shape[0]):
-        arg1 = np.argwhere(X[a] == 1)[:, 0]
-        patientLatent[a] = np.sum(reverseLatent[arg1], axis=0)
-
-
-    #plt.plot(np.sort(patientLatent[:, 1]))
-    #plt.plot(np.sort(reverseLatent2[:, 1]))
-    #plt.show()
-    #quit()
-
-
-
-
-    #plt.scatter(patientLatent[typeList ==0, 0], patientLatent[typeList ==0, 1])
-    #plt.scatter(patientLatent[typeList ==1, 0], patientLatent[typeList ==1, 1])
-    #plt.scatter(patientLatent[typeList ==2, 0], patientLatent[typeList ==2, 1])
-    #plt.scatter(patientLatent[typeList ==3, 0], patientLatent[typeList ==3, 1])
-    #plt.show()
-
-    #quit()
-
-    #argCut = np.argwhere(  np.logical_and( patientLatent[:, 0] < 7, patientLatent[:, 1] < -2  ) )[:, 0]
-
-
-    #print (np.unique( typeList, return_counts=True ))
-    #print (np.unique( typeList[argCut], return_counts=True ))
-
-
-
-    plt.scatter(patientLatent[typeList <=2, 0], patientLatent[typeList <=2, 1], s=5)
-    plt.scatter(patientLatent[typeList >=2, 0], patientLatent[typeList >=2, 1], s=5)
-    plt.xlabel("components 1")
-    plt.ylabel("components 2")
+    plt.scatter(embedding[types < 2, 0], embedding[types < 2, 2], s=20, alpha=0.5)
+    plt.scatter(embedding[types >= 2, 0], embedding[types >= 2, 2], s=20, alpha=0.5)
+    plt.xlabel("PCA component 1")
+    plt.ylabel("PCA component 3")
+    plt.tight_layout()
     plt.gcf().set_size_inches(8, 6)
+    plt.legend(["HR+", "HR$-$"])
+    plt.savefig('./images/new1/breastEmbedding_PCA_0_2.pdf')
+    plt.show()
+
+    plt.scatter(embedding[types < 2, 1], embedding[types < 2, 2], s=20, alpha=0.5)
+    plt.scatter(embedding[types >= 2, 1], embedding[types >= 2, 2], s=20, alpha=0.5)
+    plt.xlabel("PCA component 2")
+    plt.ylabel("PCA component 3")
+    plt.tight_layout()
+    plt.gcf().set_size_inches(8, 6)
+    plt.legend(["HR+", "HR$-$"])
+    plt.savefig('./images/new1/breastEmbedding_PCA_1_2.pdf')
     plt.show()
 
 
-    #patientLatent = patientLatent + np.random.random(patientLatent.shape) * 0.5
-
-
-    #from sklearn.linear_model import LogisticRegression
-    #clf = LogisticRegression(random_state=0).fit(patientLatent, typeList)
-
-    from sklearn.decomposition import PCA
-    pca = PCA(n_components=2)
-    #patientLatent = pca.fit_transform(patientLatent)
-    #patientLatent = patientLatent[:, :2]
-
-    #compNum = 3
-    for compNum in [0, 1]:
-        min1 = np.min(patientLatent[:, compNum])
-        max1 = np.max(patientLatent[:, compNum])
-
-        plt.hist(patientLatent[typeList <= 2, compNum], bins=100, range=(min1, max1), histtype='step')
-        plt.hist(patientLatent[typeList >= 2, compNum], bins=100, range=(min1, max1), histtype='step')
-        plt.show()
     quit()
 
 
 
-
-    plt.scatter(patientLatent[typeList == 0, 4], patientLatent[typeList == 0, 0])
-    plt.scatter(patientLatent[typeList == 1, 4], patientLatent[typeList == 1, 0])
-    plt.scatter(patientLatent[typeList == 2, 4], patientLatent[typeList == 2, 0])
-    plt.scatter(patientLatent[typeList == 3, 4], patientLatent[typeList == 3, 0])
-    plt.show()
-    quit()
-
-    #for a in range(4):
-    #    plt.plot(patientLatent[np.argsort(typeList) , a])
-    #    plt.show()
-    #quit()
-
-    for a in range(5):
-        print (a)
-        patientLatent[:, a] = patientLatent[:, a] / np.mean(patientLatent[:, a])
-
-        plt.plot(patientLatent[np.argsort(typeList) , a])
-        plt.plot(typeList[np.argsort(typeList)] % 2)
-        plt.show()
-
-
-    #plt.plot(patientLatent[np.argsort(typeList) , :])
-    #plt.plot(typeList[np.argsort(typeList)] % 2)
-    #plt.show()
-    quit()
-
-
-
-    sum1 = patientLatent[:, 0] + patientLatent[:, 1] + patientLatent[:, 2] - patientLatent[:, 3] - patientLatent[:, 4]
-
-    plt.plot(sum1[np.argsort(typeList)])
-    plt.plot(typeList[np.argsort(typeList)] % 2)
-    plt.show()
-
-
-
-
-    for type1 in np.unique(typeList):
-
-        argType = np.argwhere(typeList == type1)[:, 0]
-        vec1 = patientLatent[argType]
-        mean1 = np.mean(vec1, axis=0)
-        vec2 = vec1 - mean1.reshape((1, -1))
-        mean2 = np.mean(vec2**2, axis=0) ** 0.5
-
-        #print (mean1)
-        #print (mean2)
-
-    #plt.plot(patientLatent[np.argsort(typeList)])
-    #plt.plot(typeList[np.argsort(typeList)] % 2)
-    #plt.show()
-
-    quit()
-
-    patientNum = -1
-    treeNum = 0
-
-    #countList = np.zeros((2000, len(importantMutation)))
-    typeList = np.zeros((2000))
-
-
-
-    countList = countList[:patientNum+1]
-    typeList = typeList[:patientNum+1]
-
-    #print (np.sum(countList, axis=0))
-    #quit()
-
-    totalImportant = np.sum(countList, axis=1)
-
-    importantPatient = np.argwhere(totalImportant > 0)[:, 0]
-    #print (types[importantPatient])
-    #print (np.argwhere(totalImportant > 0).shape)
-
-    bothAr = np.concatenate((  typeList[importantPatient].reshape((-1, 1)), countList[importantPatient]  ), axis=1)
-
-    #print (np.mean(bothAr.astype(float)[bothAr[:, 0] == 0], axis=0 ))
-    #print (np.mean(bothAr.astype(float)[bothAr[:, 0] == 1], axis=0 ))
-    #print (np.mean(bothAr.astype(float)[bothAr[:, 0] == 2], axis=0 ))
-    #print (np.mean(bothAr.astype(float)[bothAr[:, 0] == 3], axis=0 ))
-
-    plt.plot(np.mean(bothAr.astype(float)[bothAr[:, 0] == 0], axis=0 ))
-    plt.plot(np.mean(bothAr.astype(float)[bothAr[:, 0] == 1], axis=0 ))
-    plt.plot(np.mean(bothAr.astype(float)[bothAr[:, 0] == 2], axis=0 ))
-    plt.plot(np.mean(bothAr.astype(float)[bothAr[:, 0] == 3], axis=0 ))
-    plt.show()
 
 
 #checkBreastType()
@@ -12043,6 +12526,7 @@ def doPCAlatent():
 
     print ("analyzeModel")
 
+    import matplotlib
     import matplotlib.pyplot as plt
 
 
@@ -12057,8 +12541,8 @@ def doPCAlatent():
 
     #plt.gcf().tight_layout()
 
-    modelName = 'AML'
-    #modelName = 'breast'
+    #modelName = 'AML'
+    modelName = 'breast'
 
     if modelName == 'AML':
         model = torch.load('./Models/realData/savedModel_AML.pt')
@@ -12105,6 +12589,14 @@ def doPCAlatent():
     latentSize = np.max(np.abs(xNP), axis=1)
 
 
+    pred_shape = pred.shape
+    pred2 = pred.reshape((1, -1))
+    #This calculates the relative probability of each mutation clone pair. More fit clones will yeild higher probabilities.
+    prob2 = torch.softmax(pred2, dim=1)
+    prob2 = prob2.reshape(pred_shape)
+    prob2_np = prob2.data.numpy()
+    prob2_sum = np.sum(prob2_np, axis=1)
+    fitness = prob2_sum
 
 
 
@@ -12125,8 +12617,31 @@ def doPCAlatent():
     #                init='random', perplexity=3).fit_transform(xNP)
 
     from sklearn.decomposition import PCA
-    pca = PCA(n_components=2)
+    pca = PCA(n_components=3)
     embedding = pca.fit_transform(xNP)
+
+
+    #print (np.std(embedding[:, 0]))
+    #print (np.std(embedding[:, 1]))
+    #print (np.std(embedding[:, 2]))
+    #quit()
+
+    import scipy
+    #print (scipy.stats.pearsonr(embedding[:, 0], fitness))
+    #print (scipy.stats.pearsonr(embedding[:, 1], fitness))
+    #print (scipy.stats.pearsonr(embedding[:, 2], fitness))
+    #quit()
+
+
+    axisNum = 2
+
+    if axisNum == 0:
+        embedding = embedding[:, np.array([0, 1])]
+    if axisNum == 1:
+        embedding = embedding[:, np.array([0, 2])]
+    if axisNum == 2:
+        embedding = embedding[:, np.array([1, 2])]
+
 
 
 
@@ -12139,14 +12654,14 @@ def doPCAlatent():
     #plt.plot(embedding)
     #plt.show()
 
-    if False:
+    if True:
 
         from adjustText import adjust_text
 
         length1 = np.max(embedding[:, 0]) - np.min(embedding[:, 0])
         length2 = np.max(embedding[:, 1]) - np.min(embedding[:, 1])
 
-        plt.scatter(embedding[:, 0], embedding[:, 1])
+        plt.scatter(embedding[:, 0], embedding[:, 1], c=fitness, cmap='viridis', norm=matplotlib.colors.LogNorm())
 
         if modelName == 'breast':
             plt.ylim( np.min(embedding[:, 1]) - (length2 * 0.05) , np.max(embedding[:, 1]) + (length2 * 0.1) )
@@ -12157,7 +12672,18 @@ def doPCAlatent():
         if modelName != 'AML':
             for a0 in range(argsInteresting.shape[0]):
                 a = argsInteresting[a0]
-                plt.annotate(mutationName[a], (embedding[a, 0] - (length1*0.045), embedding[a, 1] + (length2*0.02)    ))
+                name1 = mutationName[a]
+
+                doAnnotate = True
+
+                if axisNum == 1:
+                    if name1 == 'CBFB':
+                        doAnnotate = False
+
+                if doAnnotate:
+                    name2 = mutationName[a]
+                    name2 = '\emph{' + name2 + '}'
+                    plt.annotate(name2, (embedding[a, 0] - (length1*0.045), embedding[a, 1] + (length2*0.02)    ))
 
         if modelName == 'AML':
 
@@ -12168,35 +12694,76 @@ def doPCAlatent():
 
                 pos1 = embedding[a, 0] - (length1*0.045)
                 pos2 = embedding[a, 1] + (length2*0.02)
-                if name1 in ['NPM1']:
-                    pos1 = pos1 - (length1 * 0.03)
-                if name1 in ['FLT3', 'NRAS', 'U2AF1']: #'GATA2'
-                    pos2 = pos2 - (length2 * 0.08)
-                if name1 in ['NRAS']:
-                    pos1 = pos1 - (length1 * 0.03)
-                if name1 in ['FLT3', 'DNMT3A']:
-                    pos1 = pos1 - (length1 * 0.04)
-                if name1 in ['GATA2', 'IDH2']:
-                    pos1 = pos1 + (length1 * 0.04)
-                plt.annotate(name1, (pos1, pos2    ))
-                #texts.append(plt.text(embedding[a, 0], embedding[a, 1], mutationName[a]))
 
-        plt.xlabel('PCA component 1')
-        plt.ylabel('PCA component 2')
+                doAnnotate = True
+
+                if axisNum == 0:
+                    if name1 in ['NPM1']:
+                        pos1 = pos1 - (length1 * 0.03)
+                    if name1 in ['FLT3', 'NRAS', 'U2AF1']: #'GATA2'
+                        pos2 = pos2 - (length2 * 0.08)
+                    if name1 in ['NRAS', 'U2AF1']: #'GATA2'
+                        pos1 = pos1 + (length1 * 0.04)
+                    if name1 in ['NRAS']:
+                        pos1 = pos1 - (length1 * 0.03)
+                    if name1 in ['FLT3', 'DNMT3A']:
+                        pos1 = pos1 - (length1 * 0.04)
+                    if name1 in ['GATA2', 'IDH2']:
+                        pos1 = pos1 + (length1 * 0.04)
+                    if name1 in ['DNMT3A']:
+                        pos1 = pos1 - (length1 * 0.04)
+
+                if axisNum == 1:
+                    if name1 in ['FLT3', 'IDH2', 'U2AF1']:
+                        doAnnotate = False
+
+                if axisNum == 2:
+                    if name1 in ['FLT3', 'IDH2', 'U2AF1']:
+                        doAnnotate = False
+
+
+                if doAnnotate:
+
+                    name1 = '\emph{' + name1 + '}'
+
+                    plt.annotate(name1, (pos1, pos2    ))
+                    #texts.append(plt.text(embedding[a, 0], embedding[a, 1], mutationName[a]))
+
+
+        if axisNum == 0:
+            plt.xlabel('PCA component 1')
+            plt.ylabel('PCA component 2')
+            endName = '_1_2'
+        if axisNum == 1:
+            plt.xlabel('PCA component 1')
+            plt.ylabel('PCA component 3')
+            endName = '_1_3'
+        if axisNum == 2:
+            plt.xlabel('PCA component 2')
+            plt.ylabel('PCA component 3')
+            endName = '_2_3'
+
+        #plt.colorbar()
+        if modelName == 'AML':
+            plt.colorbar().set_label('fitness', rotation=270)
+        else:
+            plt.colorbar().set_label('fitness', rotation=270, labelpad=20)
 
         #adjust_text(texts, only_move={'points':'y', 'texts':'y'}, arrowprops=dict(arrowstyle="->", color='r', lw=0.5))
         #adjust_text(texts)
 
+        plt.tight_layout()
         plt.gcf().set_size_inches(8, 6)
-        if modelName == 'AML':
-            plt.savefig('./images/embeddedLatentAML.pdf')
-        else:
-            plt.savefig('./images/embeddedLatentBreast.pdf')
-            True
+        if True:
+            if modelName == 'AML':
+                plt.savefig('./images/new1/embeddedLatentAML' + endName + '.pdf')
+            else:
+                plt.savefig('./images/new1/embeddedLatentBreast' + endName + '.pdf')
+        True
         plt.show()
 
 
-    if True:
+    if False:
 
         #print (xNP.shape)
 
@@ -12221,10 +12788,8 @@ def doPCAlatent():
 
 
 
-
-
-#doPCAlatent()
-#quit()
+doPCAlatent()
+quit()
 
 
 
@@ -12298,8 +12863,8 @@ def checkLateFitness():
         return clones
 
 
-    #dataName = 'AML'
-    dataName = 'breast'
+    dataName = 'AML'
+    #dataName = 'breast'
 
 
     if dataName == 'AML':
@@ -12398,6 +12963,14 @@ def checkLateFitness():
     avgSum3 = avgSum[np.isin(np.arange(avgSum.shape[0]), order1)==False]
 
 
+    print (np.median(avgSum))
+
+    print (np.array(highFitness[  avgSum2  >  np.median(avgSum) ]  ))
+    print (np.array(avgSum2[  avgSum2  >  np.median(avgSum) ]  ))
+
+    quit()
+
+
     print (avgSum2.shape)
     print (highFitness.shape)
     #quit()
@@ -12418,10 +12991,12 @@ def checkLateFitness():
     plt.legend(['low fitness mutations', 'high fitness mutations'])
     plt.gcf().set_size_inches(8, 6)
     if dataName == 'AML':
-        plt.savefig('./images/earlyFitAML.pdf')
+        if False:
+            plt.savefig('./images/earlyFitAML.pdf')
     else:
         plt.yscale('log')
-        plt.savefig('./images/earlyFitBreast.pdf')
+        if False:
+            plt.savefig('./images/earlyFitBreast.pdf')
     plt.show()
     quit()
 
@@ -12450,37 +13025,79 @@ def investigateRootPrevalance():
     ar1 = [[0, 0, 2.6], [0, 1, 2.1], [1, 2, 4.2], [2, 3, 0.0], [2, 4, 0.7], [4, 5, 0.1], [5, 6, 4.4], [2, 7, 70.3], [7, 8, 17.2], [2, 9, 1.0], [9, 10, 0.1], []]
     '''
 
+    isTerminal = True
+
+
+    if isTerminal:
+        #Terminal is FIRST. [Terminal, parent]
+        ar = [[3.2, 62.1], [20.6, 49.5], [69.8, 21.8], [0, 0.1], [0, 0.1], [17.2, 70.3], [4.4, 0.1], [0.0, 4.2]]
+        ar = ar + [[9.9, 25.5], [12.3, 25.5], [10.6, 30.7], [13.2, 13.3, 17.7, 23.2], [17.8, 14.8]]
+        ar = ar + [[78.1, 13.3], [46.9, 34.4], [0.0, 1.7], [5.2, 8.6, 69.6, 14.9], [21.0, 26.3], [45.0, 29.2]]
+        ar = ar + [[22.3, 15.1, 45.4], [29.1, 14.0], [7.5, 34.2], [22.0, 17.4, 6.6, 14.1, 6.0, 3.5, 18.6]]
+        ar = ar + [[66.5, 23.7], [37.4, 16.5], [9.6, 36.5], [66.3, 19.9], [55.3, 27.3], [29.8, 45.6], [40.5, 16.4]]
+        ar = ar + [[71.7, 16.3], [0.0, 0.0], [8.8, 12.1, 9.0, 7.7, 17.3], [15.0, 12.4, 9.0, 8.5], [34.0, 34.9]]
+        ar = ar + [[32.0, 28.6], [1.6, 28.4], [4.3, 44.7], [15.2, 10.9, 8.9, 13.5], [9.3, 21.7], [62.0, 18.1]]
+        ar = ar + [[13.5, 17.1, 42.4], [4.0, 46.4], [13.8, 14.5], [12.8, 19.5], [16.3, 13.9, 18.0]]
+        ar = ar + [[66.1, 11.3, 8.3], [35.2, 23.0], [20.2, 17.9], [19.1, 18.4, 24.2], [21.4, 21.1, 32.4]]
+        ar = ar + [[21.3, 26.3], [25.4, 27.0], [72.0, 17.1], [0.8, 0.5, 7.0], [3.1, 36.4], [21.9, 10.6, 1.7, 5.0, 5.4]]
+        ar = ar + [[5.6, 44.8, 33.8], [5.9, 6.5, 27.6], [10.3, 4.8, 23.5], [17.8, 5.8, 6.1, 5.3, 4.9, 33.5]]
+        ar = ar + [[7.6, 6.3, 8.1, 48.1], [82.6, 9.3], [7.9, 46.6], [6.5, 54.0], [13.4, 17.4], [67.9, 23.8]]
+        ar = ar + [[64.9, 20.7], [49.9, 13.7, 36.4], [76.6, 14.4], [67.2, 20.5], [28.7, 17.4, 5.2, 3.8, 29.9]]
+        ar = ar + [[14.2, 40.2], [5.6, 27.6], [24.9, 27.2], [42.1, 26.9], [23.5, 3.5], [32.8, 33.8]]
+        ar = ar + [[45.2, 27.1], [17.6, 52.6], [10.1, 49.0], [5.6, 21.9], [15.3, 4.2], [12.9, 11.1]]
+        ar = ar + [[40.6, 33.3, 1.4, 6.6, 5.1], [25.0, 22.3, 37.4], [4.7, 56.6], [62.9, 22.0], [34.0, 33.8]]
+        ar = ar + [[2.2, 0.7, 38.7], [30.5, 6.6], [15.1, 3.4], [9.6, 50.2], [60.2, 25.6], [3.3, 10.7]]
+        ar = ar + [[3.2, 42.6], [12.5, 75.8], [68.1, 22.4], [43.9, 50.8], [19.3, 15.5, 14.2, 13.5, 19.9]]
+        ar = ar + [[39.7, 23.6], [18.5, 4.2], [14.0, 23.6], [8.0, 8.8, 7.5, 6.1, 44.0], [12.6, 6.9]]
+        ar = ar + [[6.6, 80.9]]
+
+    #quit()
+
+
 
 
 
 
     #quit()
 
-    ar = []
-    ar = ar + [[2.8, 4.0], [3.7, 6.9], [8.4, 21.8], [2.6, 2.1], [10.9, 25.5, 30.7], [14.8, 23.2, 17,8], [8.4, 8.6], [10.2, 8.4], [14.7, 14.9]]
-    ar = ar + [[11.5, 15.6], [25.7, 29.2], [17.2, 45.4], [34.2, 15.2, 7.5], [11.7, 18.6], [9.7, 23.7], [36.5, 16.5, 9.6], [7.1, 6.6], [9.9, 17.4]]
-    ar = ar + [[13.7, 10.9], [19.1, 24.0], [5.5, 12.0], [8.5, 17.3, 15.0, 12.4, 9.0], [30.9, 34.9], [5.9, 3.5], [17.8, 6.8], [20.5, 21.7]]
-    ar = ar + [[9.0, 4.5], [5.3, 4.2], [6.6, 15.9], [23.6, 27.7], [19.4, 18.0], [9.3, 2.6], [25.1, 16.7], [24.2, 17.9, 19.1, 18.4]]
-    ar = ar + [[25.1, 32.4], [27.0, 26.3, 25.4], [6.2, 4.6], [6.4, 1.7], [2.4, 15.8], [7.2, 12.6], [1.3, 5.3], [7.1, 2.0], [5.0, 3.1], [28.0, 17.4]]
-    ar = ar + [[8.7, 17.4], [8.3, 23.8], [8.6, 5.8], [36.4, 49.9, 13.7], [4.5, 4.6]]
-    ar = ar + [[12.3, 20.5], [6.9, 7.9], [26.1, 19.6], [27.2, 27.6, 24.6]]
-    ar = ar + [[6.8, 24.2], [50.0, 18.4], [33.3, 33.8]]
-    ar = ar + [[12.1, 15.6], [8.6, 6.0]]
-    ar = ar + [[2.7, 12.0], [28.2, 11.1], [10.0, 2.9], [5.3, 15.3], [12.5, 6.3]]
-    ar = ar + [[15.1, 22.0], [13.5, 16.2], [3.4, 2.7, 15.1], [15.3, 6.8], [25.8, 60.2, 10.7], [10.8, 6.5], [11.7, 75.8], [9.5, 22.4], [5.2, 50.8]]
-    ar = ar + [[17.5, 19.9], [23.6, 39.7, 4.2, 14.0], [4.0, 2.2], [1.3, 1.4]]
+    if not isTerminal:
+        ar = []
+        ar = ar + [[2.8, 4.0], [3.7, 6.9], [8.4, 21.8], [2.6, 2.1], [10.9, 25.5, 30.7], [14.8, 23.2, 17,8], [8.4, 8.6], [10.2, 8.4], [14.7, 14.9]]
+        ar = ar + [[11.5, 15.6], [25.7, 29.2], [17.2, 45.4], [34.2, 15.2, 7.5], [11.7, 18.6], [9.7, 23.7], [36.5, 16.5, 9.6], [7.1, 6.6], [9.9, 17.4]]
+        ar = ar + [[13.7, 10.9], [19.1, 24.0], [5.5, 12.0], [8.5, 17.3, 15.0, 12.4, 9.0], [30.9, 34.9], [5.9, 3.5], [17.8, 6.8], [20.5, 21.7]]
+        ar = ar + [[9.0, 4.5], [5.3, 4.2], [6.6, 15.9], [23.6, 27.7], [19.4, 18.0], [9.3, 2.6], [25.1, 16.7], [24.2, 17.9, 19.1, 18.4]]
+        ar = ar + [[25.1, 32.4], [27.0, 26.3, 25.4], [6.2, 4.6], [6.4, 1.7], [2.4, 15.8], [7.2, 12.6], [1.3, 5.3], [7.1, 2.0], [5.0, 3.1], [28.0, 17.4]]
+        ar = ar + [[8.7, 17.4], [8.3, 23.8], [8.6, 5.8], [36.4, 49.9, 13.7], [4.5, 4.6]]
+        ar = ar + [[12.3, 20.5], [6.9, 7.9], [26.1, 19.6], [27.2, 27.6, 24.6]]
+        ar = ar + [[6.8, 24.2], [50.0, 18.4], [33.3, 33.8]]
+        ar = ar + [[12.1, 15.6], [8.6, 6.0]]
+        ar = ar + [[2.7, 12.0], [28.2, 11.1], [10.0, 2.9], [5.3, 15.3], [12.5, 6.3]]
+        ar = ar + [[15.1, 22.0], [13.5, 16.2], [3.4, 2.7, 15.1], [15.3, 6.8], [25.8, 60.2, 10.7], [10.8, 6.5], [11.7, 75.8], [9.5, 22.4], [5.2, 50.8]]
+        ar = ar + [[17.5, 19.9], [23.6, 39.7, 4.2, 14.0], [4.0, 2.2], [1.3, 1.4]]
 
 
 
 
-    rootSizes = []
-    firstSizes = []
-    ratios = []
-    for a in range(len(ar)):
-        rootSizes.append(ar[a][0])
-        for b in range(1, len(ar[a])):
-            ratios.append(  np.log(ar[a][b]+ 1) - np.log(ar[a][0] + 1)  )
-            firstSizes.append(ar[a][b])
+
+    if isTerminal:
+        rootSizes = []
+        firstSizes = []
+        ratios = []
+        for a in range(len(ar)):
+            rootSizes.append(ar[a][-1])
+            for b in range(len(ar[a])-1):
+                ratios.append(  np.log(ar[a][b]+ 1) - np.log(ar[a][-1] + 1)  )
+                firstSizes.append(ar[a][b])
+
+    else:
+        rootSizes = []
+        firstSizes = []
+        ratios = []
+        for a in range(len(ar)):
+            rootSizes.append(ar[a][0])
+            for b in range(1, len(ar[a])):
+                ratios.append(  np.log(ar[a][b]+ 1) - np.log(ar[a][0] + 1)  )
+                firstSizes.append(ar[a][b])
 
     ratios = np.array(ratios)
     mean1 = np.mean(ratios)
@@ -12496,23 +13113,226 @@ def investigateRootPrevalance():
     min1 = 0
     max1 = max(firstSizes)
 
+
+    ratioPlot = True
+
+
+    if ratioPlot:
+
+
+        plt.hist(ratios, bins=10)
+        plt.xlabel('log prevalence ratio')
+        plt.ylabel('count')
+        plt.tight_layout()
+        plt.savefig('./images/new1/termLogPrevRatio.pdf')
+        plt.show()
+        quit()
+
+
     #print (np.min(rootSizes))
     #print (np.max(rootSizes))
-    quit()
+    #quit()
 
-    plt.hist(rootSizes, alpha=0.5, range=(min1, max1))
-    plt.hist(firstSizes, alpha=0.5, range=(min1, max1))
-    plt.xlabel('prevalence')
-    plt.ylabel('count')
-    plt.legend(['normal Clone', 'clone with one mutation'])
-    plt.gcf().set_size_inches(8, 6)
-    plt.savefig('./images/rootPrev.pdf')
-    #plt.xscale('log')
-    plt.show()
+    if isTerminal:
+        plt.hist(rootSizes, alpha=0.5, range=(min1, max1))
+        plt.hist(firstSizes, alpha=0.5, range=(min1, max1))
+        plt.xlabel('prevalence')
+        plt.ylabel('count')
+        plt.legend(['clone before the terminal clone', 'terminal clone'])
+        plt.gcf().set_size_inches(8, 6)
+        plt.savefig('./images/new1/terminalPrev.pdf')
+        #plt.savefig('./images/rootPrev.pdf')
+        #plt.xscale('log')
+        plt.show()
+    else:
+        plt.hist(rootSizes, alpha=0.5, range=(min1, max1))
+        plt.hist(firstSizes, alpha=0.5, range=(min1, max1))
+        plt.xlabel('prevalence')
+        plt.ylabel('count')
+        plt.legend(['normal clone', 'clone with one mutation'])
+        plt.gcf().set_size_inches(8, 6)
+        #plt.savefig('./images/new1/terminalPrev.pdf')
+        plt.savefig('./images/new1/rootPrev.pdf')
+        #plt.xscale('log')
+        plt.show()
 
 #investigateRootPrevalance()
 #quit()
 
+
+def compareTerminalityFitness():
+
+
+    import scipy
+
+    modelName = 'AML'
+    #modelName = 'breast'
+
+
+    if modelName == 'AML':
+        #file1 = './data/realData/breastCancer'
+        file1 = './data/realData/AML'
+        maxM = 10
+        newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, file1, fullDir=True)
+        M0 = M
+    else:
+        file1 = './data/realData/breastCancer'
+        maxM = 9
+        newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M = processTreeData(maxM, file1, fullDir=True)
+        M0 = M
+
+
+
+    M = np.unique(mutationCategory).shape[0] - 2
+
+    totals = np.zeros(M)
+    terms = np.zeros(M)
+
+    _, sampleInverse = np.unique(sampleInverse, return_inverse=True)
+
+    _, counts1 = np.unique(sampleInverse, return_counts=True)
+
+    for a in range(sampleInverse.shape[0]):
+        weight1 = counts1[sampleInverse[a]]
+        weight1 = 1.0 / float(weight1)
+
+        length1 = int(treeLength[a])
+        tree1 = newTrees[a, :length1]
+
+        exist1 = tree1[:, 1]
+        terminal1 = exist1[np.isin(exist1, tree1[:, 0]) == False]
+
+        exist1 = mutationCategory[exist1]
+        terminal1 = mutationCategory[terminal1]
+
+        totals[exist1] = totals[exist1] + weight1
+        terms[terminal1] = terms[terminal1] + weight1
+
+
+    termRatio = terms / totals
+
+
+    _, index1 = np.unique(mutationCategory[:-2], return_index=True)
+    uniqueMutation = uniqueMutation[index1]
+
+
+
+    #print (M)
+    #quit()
+
+
+
+
+    #modelName = 'breast'
+
+    if modelName == 'AML':
+        model = torch.load('./Models/realData/savedModel_AML.pt')
+        mutationName = np.load('./data/realData/categoryNames.npy')[:-2]
+        M = 22
+    elif modelName == 'breast':
+        model = torch.load('./Models/realData/savedModel_breast.pt')
+        mutationName = np.load('./data/realData/breastCancermutationNames.npy')[:-2]
+        M = 406
+        latentMin = 0.1
+
+
+
+    #This creates a matrix representing all of the clones with only one mutation.
+    X = torch.zeros((M, M))
+    X[np.arange(M), np.arange(M)] = 1
+
+    #This gives the predicted probability weights and the predicted latent variables.
+    pred, xNP = model(X)
+    shape1 = pred.shape
+
+    pred2 = pred.reshape((1, -1))
+
+    #This calculates the relative probability of each mutation clone pair. More fit clones will yeild higher probabilities.
+    prob2 = torch.softmax(pred2, dim=1)
+    prob2 = prob2.reshape(shape1)
+
+
+    prob2_np = prob2.data.numpy()
+
+    prob2_sum = np.sum(prob2_np, axis=1)
+
+
+
+    fit1 = prob2_sum
+
+
+    #print (scipy.stats.pearsonr(fit1, termRatio))
+    #print (scipy.stats.spearmanr(fit1[termRatio <= 0.5], termRatio[termRatio <= 0.5]))
+    #quit()
+
+    #plt.plot(fit1)
+    #plt.plot(termRatio)
+    #plt.plot(totals)
+
+    if modelName == 'AML':
+        #goodNames = ['ASXL1', 'DNMT3A', 'GATA2', 'IDH2', 'NPM1', 'NRAS', 'U2AF1', 'FLT3']
+        goodNames = ['ASXL1', 'DNMT3A', 'GATA2', 'IDH2', 'NPM1', 'NRAS', 'FLT3']
+    else:
+        #goodNames = ['TP53', 'CDH1', 'GATA3', 'MAP3K1', 'PIK3CA', 'KMT2C', 'ESR1', 'ARID1A']
+        goodNames = ['TP53', 'CDH1', 'GATA3', 'MAP3K1', 'PIK3CA', 'KMT2C']
+
+
+    size1 = np.max(fit1) - np.min(fit1)
+
+
+    plt.scatter(fit1, termRatio)
+
+    for i in range(fit1.shape[0]):
+        name = uniqueMutation[i]
+        name = name.split('_')[0]
+        #print (name)
+        if name in goodNames:
+            #print ("A")
+            pos1 = fit1[i]
+            pos2 = termRatio[i]
+            #if name == 'ESR1':
+            #    pos2 = pos2 * (1-0.03)
+            if name == 'NPM1':
+                pos1 = pos1 - (size1 * 0.08)
+            if name == 'FLT3':
+                pos1 = pos1 - (size1 * 0.04)
+                #pos2 = pos2 + 0.01
+
+            if modelName == 'breast':
+                pos1 = pos1 - (size1 * 0.04)
+                if name == 'TP53':
+                    pos1 = pos1 - (size1 * 0.02)
+
+            name = '\emph{' + name + '}'
+
+            plt.annotate(name, (pos1 , pos2 + 0.02 ))
+
+
+
+
+
+    #plt.xscale('log')
+    #plt.annotate('hi', (0.2, 0.2))
+    plt.xlabel("fitness")
+    plt.ylabel('proportion terminal')
+    plt.tight_layout()
+    if modelName == 'AML':
+        plt.savefig('./images/new1/terminalFitness_AML.pdf')
+    else:
+        plt.savefig('./images/new1/terminalFitness_breast.pdf')
+    plt.show()
+
+
+
+    #plt.plot(prob2_sum)
+    #plt.show()
+
+    quit()
+
+
+
+#compareTerminalityFitness()
+#quit()
 
 
 def plotRuntimes():
@@ -12795,8 +13615,8 @@ def analyzeBreastSamples():
 
 
 
-analyzeBreastSamples()
-quit()
+#analyzeBreastSamples()
+#quit()
 
 
 import sys
