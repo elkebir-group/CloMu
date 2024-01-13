@@ -210,14 +210,25 @@ def processTreeData(maxM, fileIn, mutationFile, infiniteSites=True, patientNames
 
     MVal = 100
 
+    # sampleInverse can be seen as an array parallel to newTrees
+    # its size is the muber of trees in the dataset with no more than maxM mutations
+    # sampleInverse[i] is an integer representing the number of patient to which the tree newTrees[i] is associated
+    # i.e., given the tree newTrees[i], the patient to which such a tree is associated is sampleInverse[i]
     sampleInverse = np.zeros(100000)
     treeLength = np.zeros(100000)
+    # after the processing, newTrees will have size (total number of trees, maxM, 2)
+    # indeed, it will contain all trees in the dataset with no more than maxM edges
+    # newTrees[i] will contain all edges for tree i
+    # newTrees[i][j] will contain the edge j in tree i, i.e. the pair of mutations (list of size 2)
     newTrees = np.zeros((100000, maxM, 2)).astype(str)
     lastName = 'ZZZZZZZZZZZZZZZZ'
     firstName = 'ZZZZZZZZZZ'
+    # sampleInverse can be seen as an array parallel to newTree
     newTrees[:] = lastName
 
     count1 = 0
+
+    # iterate over the patients: treeData[a] is the patient in position a in the dataset
     for a in range(0, len(treeData)):
         treeList = treeData[a]
         treeList = np.array(list(treeList))
@@ -225,13 +236,20 @@ def processTreeData(maxM, fileIn, mutationFile, infiniteSites=True, patientNames
         #print (treeList)
         #quit()
 
+        # treeList.shape[1] is the number of edges of trees associated with patient a
+        # remember that all trees associated with a given patient have the same length
+        # we are checking whether the trees associated with a given patient have no more than maxM mutations
         if treeList.shape[1] <= maxM:
+
+            # treeList.shape[0] is the number of trees for patient a
             size1 = treeList.shape[0]
 
             #print (treeList)
 
+            # we are adding to newTrees all trees of patient a if there are less than maxM mutations
             newTrees[count1:count1+size1, :treeList.shape[1]] = treeList
             treeLength[count1:count1+size1] = treeList.shape[1]
+
             sampleInverse[count1:count1+size1] = a
             count1 += size1
 
@@ -248,12 +266,15 @@ def processTreeData(maxM, fileIn, mutationFile, infiniteSites=True, patientNames
         newTrees[newTrees == 'GL'] = firstName
     treeLength = treeLength[:count1]
     sampleInverse = sampleInverse[:count1]
+    # shape1 is (total number of trees, maxM, 2)
     shape1 = newTrees.shape
+    # we flatten the array: it becomes a 1D array of mutations
     newTrees = newTrees.reshape((newTrees.size,))
 
 
 
-
+    # uniqueMutation contains all mutations in newTrees exactly once.
+    # newTrees contains, for each mutation in uniqueMutation, the index of such a mutation in the previous array newTrees
     uniqueMutation, newTrees = np.unique(newTrees, return_inverse=True)
 
     #print (infiniteSites)
@@ -267,13 +288,19 @@ def processTreeData(maxM, fileIn, mutationFile, infiniteSites=True, patientNames
             name1 = name.split('_')[0]
         uniqueMutation2.append(name1)
     uniqueMutation2 = np.array(uniqueMutation2)
+
+    # mutationCategory[i] = i
+    # we represent each mutation in uniqueMutation2 with an integer
     uniqueMutation2, mutationCategory = np.unique(uniqueMutation2, return_inverse=True)
 
+    # the mutation names are saved in a file and ZZZZ and ZZZZZZZZ are excluded
     np.save(mutationFile, uniqueMutation2[:-2])
 
+    # M is the number of mutations in the dataset
     M = uniqueMutation.shape[0] - 2
 
-
+    # now newTrees is a numpy array with shape (total number of trees, maxM, 2) and each mutation name
+    # substituted by the index representing the mutation name
     newTrees = newTrees.reshape(shape1)
 
     if (lastName in uniqueMutation) and (lastName != uniqueMutation[-1]):
@@ -283,6 +310,7 @@ def processTreeData(maxM, fileIn, mutationFile, infiniteSites=True, patientNames
     if patientNames != '':
         np.save(patientNames, sampleInverse)
 
+    # now sampleInverse[i] is the patient to which tree newTrees[i]
     _, sampleInverse = np.unique(sampleInverse, return_inverse=True)
 
     return newTrees, sampleInverse, mutationCategory, treeLength, uniqueMutation, M
@@ -327,7 +355,7 @@ def trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M
 
     #N1 = 10000
 
-    nPrint = 100
+    nPrint = 1
     #if adjustProbability:
         #learningRate = 1e1
     #    learningRate = 1e0
@@ -355,7 +383,7 @@ def trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M
         baseN = 10
 
     accuracies = []
-
+    iterNum = 1000
     #iterNum = 20000
     if nonLin:
         #iterNum = 4000
@@ -376,7 +404,7 @@ def trainGroupModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M
             doPrint = True
 
         if doPrint:
-            print ('iteration ' + str(iter) + ' of ' + str(iterMax))
+            print ('iteration ' + str(iter) + ' of ' + str(iterNum))
 
 
 
@@ -652,7 +680,10 @@ def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, max
 
     doTrainSet = not (type(trainSet) == type(False))
 
+    # total number of trees
     N1 = newTrees.shape[0]
+
+    # total number of patients
     N2 = int(np.max(sampleInverse) + 1)
 
     #M2 = np.unique(mutationCategory).shape[0]
@@ -660,8 +691,12 @@ def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, max
     #This calculates the test set patients, as well as the training set trees (trainSet2)
     if doTrainSet:
         #trainSet = np.argwhere(np.isin(sampleInverse, trainSet))[:, 0]
+
+        # testSet contains the patients (and not trees) not included in the training set
+        # they correspond to the last N2 - trainSize patients
         testSet = np.argwhere(np.isin(np.arange(N2), trainSet) == False)[:, 0]
 
+        # trainSet2 contains all trees of patients included in the training set
         trainSet2 = np.argwhere(np.isin(sampleInverse, trainSet))[:, 0]
 
 
@@ -721,10 +756,12 @@ def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, max
             print ('iteration ' + str(iter) + ' of ' + str(iterMax))
 
 
-        #This is initializing the edges of the generated trees
+        # initialize the edges of the generated trees
         Edges = np.zeros((N1, maxM+1, 2))
+        # the root of each tree is the clone M with no acquired mutation
+        # M is an integer that is equal to the number of different mutations in the dataset
         Edges[:, 0, 1] = M
-        #This is initializing the clones for each possible phylogeny tree.
+        # initialize the clones for each possible phylogeny tree
         clones =  torch.zeros((N1, maxM+1, M))
         #The edges remaining represent the edges which still need to be added
         #in order to generate the correct tree. It is initialized as all
@@ -872,6 +909,8 @@ def trainModelTree(newTrees, sampleInverse, treeLength, mutationCategory, M, max
 
             sampleUnique, sampleIndex = np.unique(sampleInverse, return_index=True)
 
+            # HERE THEY NORMALIZE PROBABILITIES BY TAKING INTO ACCOUNT THE NUMBER OF TREES THAT EACH PATIENT
+            # CONTAINS.
             #This will give some adjustement terms associated with sampling frequency.
             #Specifically, adjustments for the fact that things are not sampled exactly proportional to
             #there liklyhood according to the model. For more detailed information, read the paper.
@@ -1015,6 +1054,8 @@ def trainModel(inputNameList, modelName, treeSelectionName, mutationName, patien
 
         #N2 = np.unique(sampleInverse).shape[0]
         #trainSet = np.arange(N2)
+
+        # the training set contains all patients
         trainSet = np.unique(sampleInverse).astype(int)
 
 
