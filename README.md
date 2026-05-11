@@ -1,6 +1,6 @@
 # CloMu: Modeling and Predicting Cancer Clonal Evolution with Reinforcement Learning
 
-CloMu is a neural network based software for cancer phylogeny analysis.
+CloMu is a neural network reinforcment learning based software for cancer phylogeny analysis. Specifically, it uses a special case of the GReinSS (generative reinforcement learning on structured states) technique: https://github.com/elkebir-group/GReinSS (ICML 2026).
 
 <p align="center">
   <img width="1000" height="339" src="./overview.png">
